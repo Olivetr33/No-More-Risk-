@@ -891,11 +891,10 @@
         };
 
         // RiskMap State
-        let riskmapData = window.riskmapData || [];
+        let riskmapData = [];
         function renderRiskMap(data) {
             riskmapData = data || [];
-            window.riskmapData = riskmapData;
-            updateRiskmapDisplay();
+            updateRiskmapDisplay(riskmapData);
             console.log('✅ Risk Map rendered with', riskmapData.length, 'entries');
         }
         let currentSort = { column: 'Total Risk', direction: 'desc' };
@@ -938,20 +937,20 @@
             if (totalARRel) totalARRel.textContent = '€0';
         }
 
-        function updateRiskmapDisplay() {
-            console.log('RiskMap: Updating display with', riskmapData.length, 'customers');
-            updateStats();
-            renderRiskmapTable();
+        function updateRiskmapDisplay(data) {
+            console.log('RiskMap: Updating display with', data.length, 'customers');
+            updateStats(data);
+            renderCustomerTable(data);
             updateSortButtons();
         }
 
-        function updateStats() {
-            const totalCustomers = riskmapData.length;
-            const highRiskCustomers = riskmapData.filter(customer => {
+        function updateStats(data) {
+            const totalCustomers = data.length;
+            const highRiskCustomers = data.filter(customer => {
                 const risk = parseFloat(customer['Total Risk'] || customer['total_risk'] || customer['risk'] || 0);
                 return risk > 10;
             }).length;
-            const totalARR = riskmapData.reduce((sum, customer) => {
+            const totalARR = data.reduce((sum, customer) => {
                 const arr = parseFloat(customer['ARR'] || customer['arr'] || 0);
                 return sum + arr;
             }, 0);
@@ -961,18 +960,19 @@
             document.getElementById('totalARR').textContent = `€${totalARR.toLocaleString()}`;
         }
 
-        function renderRiskmapTable() {
+        function renderCustomerTable(data) {
+            // FIXED: This function now uses explicitly passed data and does not rely on globals.
             const tableBody = document.getElementById('riskmapTableBody');
-            
-            if (riskmapData.length === 0) {
+
+            if (data.length === 0) {
                 showNoDataMessage();
                 return;
             }
 
-            console.log('RiskMap: Rendering table with', riskmapData.length, 'customers');
+            console.log('RiskMap: Rendering table with', data.length, 'customers');
 
             // Sort data
-            const sortedData = [...riskmapData].sort((a, b) => {
+            const sortedData = [...data].sort((a, b) => {
                 let aVal, bVal;
                 
                 if (currentSort.column === 'ARR') {
@@ -1206,7 +1206,7 @@
                     });
                 }
                 popup.style.display='none';
-                updateRiskmapDisplay();
+                updateRiskmapDisplay(riskmapData);
             };
             document.getElementById('closeNoteBtn').onclick=function(){popup.style.display='none';};
             });
@@ -1231,7 +1231,7 @@
                 localStorage.setItem(k, JSON.stringify(sd));
             });
             riskmapData.splice(index,1);
-            updateRiskmapDisplay();
+            updateRiskmapDisplay(riskmapData);
             showToast('Added to Workflow.');
         }
 
@@ -1245,7 +1245,7 @@
             }
             
             updateSortButtons();
-            renderRiskmapTable();
+            renderCustomerTable(riskmapData);
         }
 
         function sortByRisk() {
@@ -1257,7 +1257,7 @@
             }
             
             updateSortButtons();
-            renderRiskmapTable();
+            renderCustomerTable(riskmapData);
         }
 
         let updateSortFrame;
@@ -1337,8 +1337,8 @@
 
                 const active = extractedData.filter(customer => !customer.erledigt);
                 console.log('RiskMap: Updated local data:', active.length, 'customers');
+                // FIXED: Customer data is parsed and passed directly to the rendering function.
                 renderRiskMap(active);
-                updateRiskmapDisplay();
 
                 console.log('=== RiskMap File Upload SUCCESS ===');
                 showNotification(`Datei erfolgreich hochgeladen: ${extractedData.length} Kunden mit korrekten ARR-Werten verarbeitet!`);
