@@ -67,7 +67,6 @@
                             <span class="sort-text">Total Risk</span>
                             <span class="sort-arrow">↓</span>
                         </button>
-                        <button class="sort-btn" id="radarBtn">Top 10 Radar</button>
                     </div>
                 </div>
 
@@ -638,74 +637,6 @@
             transform: translateY(-2px);
         }
 
-        /* Radar Popup Styles */
-        .popup-bg {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.6);
-            z-index: 4000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .popup-inner {
-            background: #23272b;
-            color: #fff;
-            border-radius: 18px;
-            padding: 20px;
-            width: calc((100vw - 250px) / 2);
-            max-height: 70vh;
-            overflow-y: auto;
-            box-shadow: 0 4px 32px rgba(0,0,0,0.3);
-        }
-
-        .radar-details-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        .radar-details-table th,
-        .radar-details-table td {
-            padding: 8px 10px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            font-size: 13px;
-        }
-        .radar-details-table th {
-            background: rgba(255, 210, 33, 0.15);
-            color: #ffd221;
-            font-weight: bold;
-        }
-        /* Center align Radar table cells */
-        .radar-details-table th,
-        .radar-details-table td {
-            text-align: center;
-            vertical-align: middle;
-        }
-        .radar-actions { text-align: center; }
-        .radar-detail-row { display: none; }
-        .radar-actions button {
-            margin-right: 6px;
-            padding: 4px 10px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        .radar-actions .archive-btn { background: #4CAF50; color: #fff; }
-        .radar-close {
-            margin-top: 12px;
-            padding: 6px 14px;
-            background: #f44336;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-    </style>
 
     <!-- KORRIGIERTES JavaScript - Mit IDENTISCHER extractNumber() Funktion wie in app.js -->
     <script>
@@ -1298,33 +1229,6 @@
             showToast('Added to Workflow.');
         }
 
-        function addToWorkflowRadar(idx){
-            const data = getRadarData();
-            const row = data[idx];
-            if(!row) return;
-            const name = getField(row, ['Customer Name','Kunde','Name']) || `Customer ${idx+1}`;
-            const lcsm = getField(row, ['LCSM','CSM','Manager']) || '';
-            const arr = parseFloat(getField(row, ['ARR','Revenue','Umsatz']) || 0).toFixed(2);
-            const risk = parseFloat(getField(row, ['Total Risk','Risk']) || 0);
-            const key = [name, lcsm, arr].join('|');
-            const entry = {name, lcsms: lcsm, totalRisk: risk, addedAt: new Date().toISOString()};
-            const keys = ['riskerSessionData','sessionData','appData'];
-            keys.forEach(k=>{
-                let sd = JSON.parse(localStorage.getItem(k) || '{}');
-                if(!sd.workflowEntries) sd.workflowEntries = {};
-                sd.workflowEntries[key] = entry;
-                localStorage.setItem(k, JSON.stringify(sd));
-            });
-            const radarData = getRadarData();
-            radarData.splice(idx,1);
-            renderRadarTable();
-            showToast('Added to Workflow.');
-        }
-
-        function archiveFromRadar(idx, btn){
-            archiveCustomerRiskmap(idx, btn);
-            hideRadarPopup();
-        }
 
         function sortByARR() {
             if (currentSort.column === 'ARR') {
@@ -1378,165 +1282,6 @@
             });
         }
 
-        // ================= Radar Feature ==================
-        let radarSortDesc = true;
-
-        function getRadarData() {
-            const sorted = [...riskmapData].sort((a, b) => {
-                const ar = parseFloat(a['Total Risk'] || a['risk'] || 0);
-                const br = parseFloat(b['Total Risk'] || b['risk'] || 0);
-                return br - ar;
-            });
-
-            const top10 = sorted.slice(0, 10);
-            sorted.slice(10).forEach(c => {
-                const risk = parseFloat(c['Total Risk'] || c['risk'] || 0);
-                if (risk >= 8 && !top10.includes(c)) {
-                    top10.push(c);
-                }
-            });
-            return top10;
-        }
-
-        function normalizeKey(key) {
-            return key.toLowerCase().replace(/\s+/g, '');
-        }
-
-        function getField(row, names) {
-            const keys = Object.keys(row);
-            for (const k of keys) {
-                const norm = normalizeKey(k);
-                for (const n of names) {
-                    if (norm === normalizeKey(n)) {
-                        return row[k];
-                    }
-                }
-            }
-            return null;
-        }
-
-        function generateRadarDetail(row) {
-            const name = getField(row, ['Customer Name', 'Kunde', 'Name']);
-            const number = getField(row, ['Customer Number', 'Customer ID', 'Kundennummer']);
-            const lcsm = getField(row, ['LCSM', 'CSM', 'Manager']);
-            const arrVal = getField(row, ['ARR', 'Revenue', 'Umsatz']);
-            const totalRisk = parseFloat(getField(row, ['Total Risk', 'Risk']) || 0);
-            const lastContact = getField(row, ['Last Contact']);
-            const lastSuccess = getField(row, ['Last Success Check']);
-            const renewal = getField(row, ['Contract Renewal Date']);
-
-            const riskColor = totalRisk >= 11 ? '#F44336' : (totalRisk >= 6 ? '#FF9800' : '#4CAF50');
-            const barWidth = Math.min(totalRisk, 12) / 12 * 100;
-            let html = `<div class="risk-bar-container" style="margin-bottom:6px;">
-                            <strong>Total Risk: ${totalRisk.toFixed(1)}</strong>
-                            <div class="risk-bar-bg" style="width:80px;">
-                                <div class="risk-bar-fill" style="width:${barWidth}%; background:${riskColor};"></div>
-                            </div>
-                        </div>`;
-            html += '<table class="radar-details-table"><tbody>';
-            if (name !== null) html += `<tr><td>Customer Name</td><td>${AppUtils.escapeHtml(name)}</td></tr>`;
-            if (number !== null) html += `<tr><td>Customer Number</td><td>${AppUtils.escapeHtml(number)}</td></tr>`;
-            if (lcsm !== null) html += `<tr><td>LCSM</td><td>${AppUtils.escapeHtml(lcsm)}</td></tr>`;
-            if (arrVal !== null) html += `<tr><td>ARR</td><td>€${parseFloat(arrVal).toLocaleString()}</td></tr>`;
-            if (!isNaN(totalRisk)) html += `<tr><td>Total Risk</td><td>${totalRisk.toFixed(1)}</td></tr>`;
-            if (lastContact) html += `<tr><td>Last Contact</td><td>${AppUtils.escapeHtml(lastContact)}</td></tr>`;
-            if (lastSuccess) html += `<tr><td>Last Success Check</td><td>${AppUtils.escapeHtml(lastSuccess)}</td></tr>`;
-            if (renewal) html += `<tr><td>Contract Renewal Date</td><td>${AppUtils.escapeHtml(renewal)}</td></tr>`;
-            html += '</tbody></table>';
-
-            const recs = [];
-            if (renewal) {
-                const d = new Date(renewal);
-                if (!isNaN(d) && (d - new Date()) / 86400000 <= 90 && (d - new Date()) >= 0) {
-                    recs.push('Please Contact Customer due to Business Check Iteration');
-                }
-            }
-            if (lastSuccess) {
-                const d = new Date(lastSuccess);
-                if (!isNaN(d) && (Date.now() - d.getTime()) / 86400000 > 30) {
-                    recs.push('Please Check Customer Product Usage in CRM');
-                }
-            }
-            if (recs.length > 0) {
-                const recText = recs.join('\n');
-                html += `<div class="radar-recs"><ul>` +
-                    recs.map(r => `<li>${r}</li>`).join('') +
-                    `</ul><button onclick="navigator.clipboard.writeText(this.dataset.text)" data-text="${recText.replace(/"/g, '&quot;')}">Copy</button></div>`;
-            }
-            return html;
-        }
-
-        function renderRadarTable() {
-            let data = getRadarData();
-            data.sort((a, b) => {
-                const ar = parseFloat(a['Total Risk'] || a['risk'] || 0);
-                const br = parseFloat(b['Total Risk'] || b['risk'] || 0);
-                return radarSortDesc ? br - ar : ar - br;
-            });
-
-            let html = '<table class="radar-details-table"><thead><tr>' +
-                '<th>Customer Name</th><th>LCSM</th><th>ARR</th>' +
-                '<th id="radarSort">Total Risk</th><th>Actions</th></tr></thead><tbody>';
-
-            data.forEach((row, i) => {
-                const name = getField(row, ['Customer Name', 'Kunde', 'Name']) || `Customer ${i+1}`;
-                const lcsm = getField(row, ['LCSM', 'CSM', 'Manager']) || 'N/A';
-                const arrVal = parseFloat(getField(row, ['ARR', 'Revenue', 'Umsatz']) || 0);
-                const risk = parseFloat(getField(row, ['Total Risk', 'Risk']) || 0);
-                const riskColor = risk >= 11 ? '#F44336' : (risk >= 6 ? '#FF9800' : '#4CAF50');
-
-                html += `<tr>` +
-                    `<td>${name}</td>` +
-                    `<td>${lcsm}</td>` +
-                    `<td>€${arrVal.toLocaleString()}</td>` +
-                    `<td>${risk.toFixed(1)}</td>` +
-                    `<td class="radar-actions">` +
-                        `<button class="table-action-btn" onclick="addToWorkflowRadar(${i})" title="Add to Workflow">➕ Add to Workflow</button>` +
-                    `</td>` +
-                `</tr>`;
-
-                html += `<tr class="radar-detail-row"><td colspan="5">${generateRadarDetail(row)}</td></tr>`;
-            });
-
-            html += '</tbody></table>';
-            const container = document.getElementById('radarTableContainer');
-            if (container) container.innerHTML = html;
-
-            const sortHeader = document.getElementById('radarSort');
-            if (sortHeader) {
-                sortHeader.onclick = function() {
-                    radarSortDesc = !radarSortDesc;
-                    renderRadarTable();
-                };
-            }
-        }
-
-        function toggleRadarDetail(index) {
-            const rows = document.querySelectorAll('#radarPanel .radar-detail-row');
-            const row = rows[index];
-            if (row) {
-                row.style.display = row.style.display === 'table-row' ? 'none' : 'table-row';
-            }
-        }
-
-        function showRadarPopup() {
-            renderRadarTable();
-            const panel = document.getElementById('radarPanel');
-            if (panel) panel.classList.add('active');
-            document.addEventListener('keydown', radarKeyHandler);
-            toggleFooter(true);
-        }
-
-        function hideRadarPopup() {
-            const panel = document.getElementById('radarPanel');
-            if (panel) panel.classList.remove('active');
-            document.removeEventListener('keydown', radarKeyHandler);
-            toggleFooter(false);
-        }
-
-        function radarKeyHandler(e) {
-            if (e.key === 'Escape') hideRadarPopup();
-        }
         
         // KORRIGIERT: File Upload mit IDENTISCHER Zahlenextraktion wie in app.js
         function handleFileUpload(e) {
@@ -1634,19 +1379,6 @@
                 sortRiskBtn.onclick = sortByRisk;
             }
 
-            const radarBtn = document.getElementById('radarBtn');
-            if (radarBtn) {
-                radarBtn.onclick = showRadarPopup;
-            }
-
-            const radarPanel = document.getElementById('radarPanel');
-            if (radarPanel) {
-                radarPanel.addEventListener('click', function(e) {
-                    if (e.target.id === 'radarPanel') hideRadarPopup();
-                });
-            }
-            const closeRadarBtn = document.getElementById('closeRadarBtn');
-            if (closeRadarBtn) closeRadarBtn.onclick = hideRadarPopup;
 
             const logSelect = document.getElementById('logLevelSelect');
             if (logSelect && window.Logger) {
@@ -1663,16 +1395,6 @@
             console.log('=== RiskMap Setup Complete ===');
         });
     </script>
-    <div id="radarPanel" class="slider-panel">
-      <div class="slider-header">
-        <h2>Top 10 Radar</h2>
-        <button id="closeRadarBtn" class="close-slider-btn">×</button>
-      </div>
-      <div class="slider-content" id="radarContent">
-        <div id="radarTableContainer"></div>
-        <button class="radar-close centered-btn" onclick="hideRadarPopup()">Close</button>
-      </div>
-    </div>
 
     <div id="toastContainer" class="toast-container"></div>
 
