@@ -925,22 +925,6 @@ body {
     z-index: 5000;
 }
 
-#radarTableContainer {
-  max-height: calc(100vh - 120px);
-  overflow-y: auto;
-  padding-bottom: 100px;
-}
-
-#radarTableContainer table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-#radarTableContainer td,
-#radarTableContainer th {
-  padding: 8px 12px;
-  text-align: left;
-}
 
 #quickNoteSlider {
   display: block;
