@@ -37,7 +37,7 @@ test('uses real customer name when available', () => {
     expect(result[0]['Customer Name']).toBe('Alpha');
 });
 
-test('falls back to placeholder when no name exists', () => {
+test('falls back to customer number when no name exists', () => {
     const headers = ['Customer Number', 'ARR', 'Total Risk'];
     const data = [
         { 'Customer Number': '2', ARR: '100', 'Total Risk': '5' },
@@ -45,5 +45,5 @@ test('falls back to placeholder when no name exists', () => {
     ];
     const result = extractCustomerData(data, headers);
     expect(result).toHaveLength(1);
-    expect(result[0]['Customer Name']).toMatch(/^Customer \d+/);
+    expect(result[0]['Customer Name']).toBe('2');
 });
