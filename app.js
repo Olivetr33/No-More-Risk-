@@ -170,11 +170,11 @@ function extractCustomerData(rawData, headers) {
         const arr = arrColumn ? extractNumber(row[arrColumn]) : 0;
         
         const extractedData = {
+            ...row,
             'Customer Name': customerName,
             'LCSM': lcsm,
             'Total Risk': totalRisk,
-            'ARR': arr,
-            ...row
+            'ARR': arr
         };
         
         console.log(`APP: Extracted customer ${index + 1}:`, {
