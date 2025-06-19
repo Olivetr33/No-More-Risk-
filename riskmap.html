@@ -892,6 +892,11 @@
 
         // RiskMap State
         let riskmapData = [];
+        function renderRiskMap(data) {
+            riskmapData = data || [];
+            updateRiskmapDisplay();
+            console.log('✅ Risk Map rendered with', riskmapData.length, 'entries');
+        }
         let currentSort = { column: 'Total Risk', direction: 'desc' };
 
         // Upload state locks
@@ -907,8 +912,8 @@
                 showNoDataMessage();
                 return;
             }
-            riskmapData = allCustomers.filter(c => !c.erledigt && !c.done && !c.completed && !c.archived);
-            updateRiskmapDisplay();
+            const activeCustomers = allCustomers.filter(c => !c.erledigt && !c.done && !c.completed && !c.archived);
+            renderRiskMap(activeCustomers);
             console.log('=== RiskMap Data Loading SUCCESS ===');
         }
 
@@ -1329,10 +1334,9 @@
                     console.log(`RiskMap: Session data saved to key: ${key}`);
                 }
 
-                riskmapData = extractedData.filter(customer => !customer.erledigt);
-                console.log('RiskMap: Updated local data:', riskmapData.length, 'customers');
-
-                updateRiskmapDisplay();
+                const active = extractedData.filter(customer => !customer.erledigt);
+                console.log('RiskMap: Updated local data:', active.length, 'customers');
+                renderRiskMap(active);
 
                 console.log('=== RiskMap File Upload SUCCESS ===');
                 showNotification(`Datei erfolgreich hochgeladen: ${extractedData.length} Kunden mit korrekten ARR-Werten verarbeitet!`);
