@@ -69,7 +69,8 @@ window.AppUtils = {
     // KORRIGIERT: IDENTISCHE Spalten-Mapping wie in app.js und riskmap.html
     COLUMN_MAPPINGS: {
         'LCSM': ['LCSM', 'lcsm', 'Lcsm', 'LcsM', 'SACHBEARBEITER', 'sachbearbeiter', 'Sachbearbeiter', 'CSM', 'csm', 'Manager', 'manager', 'MANAGER', 'Betreuer', 'betreuer', 'BETREUER'],
-        'Customer Name': ['Customer Name', 'customer name', 'CUSTOMER NAME', 'CustomerName', 'customername', 'CUSTOMERNAME', 'Customer Number', 'customer number', 'CUSTOMER NUMBER', 'CustomerNumber', 'customernumber', 'CUSTOMERNUMBER', 'Kunde', 'kunde', 'KUNDE', 'Kundenname', 'kundenname', 'KUNDENNAME', 'Kundennummer', 'kundennummer', 'KUNDENNUMMER', 'Name', 'name', 'NAME', 'Client', 'client', 'CLIENT'],
+        'Customer Name': ['Customer Name', 'customer name', 'CUSTOMER NAME', 'CustomerName', 'customername', 'CUSTOMERNAME', 'Kunde', 'kunde', 'KUNDE', 'Kundenname', 'kundenname', 'KUNDENNAME', 'Name', 'name', 'NAME', 'Client', 'client', 'CLIENT'],
+        'Customer Number': ['Customer Number', 'customer number', 'CUSTOMER NUMBER', 'CustomerNumber', 'customernumber', 'CUSTOMERNUMBER', 'Customer ID', 'customer id', 'CustomerID', 'CUSTOMERID', 'Kundennummer', 'kundennummer', 'KUNDENNUMMER'],
         'Total Risk': ['Total Risk', 'total risk', 'TOTAL RISK', 'TotalRisk', 'totalrisk', 'TOTALRISK', 'Risk', 'risk', 'RISK', 'Risiko', 'risiko', 'RISIKO', 'Score', 'score', 'SCORE', 'Risk Score', 'risk score', 'RISK SCORE', 'RiskScore', 'riskscore', 'RISKSCORE'],
         'ARR': ['ARR', 'arr', 'Arr', 'Annual Recurring Revenue', 'annual recurring revenue', 'ANNUAL RECURRING REVENUE', 'Revenue', 'revenue', 'REVENUE', 'Umsatz', 'umsatz', 'UMSATZ', 'Vertragswert', 'vertragswert', 'VERTRAGSWERT', 'Value', 'value', 'VALUE', 'Wert', 'wert', 'WERT', 'Amount', 'amount', 'AMOUNT']
     },
@@ -342,7 +343,7 @@ window.AppUtils = {
                 console.log('UTILS: No headers provided, extracted from data:', headers);
             }
             
-            const customerNumberColumn = window.AppUtils.findColumnName(headers, 'Customer Name') || 
+            const customerNumberColumn = window.AppUtils.findColumnName(headers, 'Customer Number') ||
                                        headers.find(h => h.toLowerCase().includes('customer') && (h.toLowerCase().includes('number') || h.toLowerCase().includes('id'))) ||
                                        headers.find(h => h.toLowerCase().includes('kunde') && h.toLowerCase().includes('nummer')) ||
                                        'Customer Number';
