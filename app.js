@@ -173,12 +173,13 @@ function extractCustomerData(rawData, headers) {
         const risk = riskColumn ? extractNumber(row[riskColumn]) : 0;
         const name = customerColumn ? row[customerColumn] : '';
         const lcsm = lcsmColumn ? row[lcsmColumn] : '';
+        const numberValue = numberColumn ? row[numberColumn] : '';
 
         if (!grouped[key]) {
             grouped[key] = {
                 ...row,
-                'Customer Name': name || '',
-                'Customer Number': row[numberColumn],
+                'Customer Name': (name && String(name).trim()) || (numberValue && String(numberValue).trim()) || '',
+                'Customer Number': numberValue,
                 'LCSM': lcsm || 'N/A',
                 'Total Risk': risk,
                 'ARR': arr
@@ -189,8 +190,8 @@ function extractCustomerData(rawData, headers) {
             }
             grouped[key]['ARR'] += arr;
 
-            if (!grouped[key]['Customer Name'] && name) {
-                grouped[key]['Customer Name'] = name;
+            if (name && (!grouped[key]['Customer Name'] || grouped[key]['Customer Name'] === String(grouped[key]['Customer Number']).trim())) {
+                grouped[key]['Customer Name'] = String(name).trim();
             }
             if (lcsm && (!grouped[key]['LCSM'] || grouped[key]['LCSM'] === 'N/A')) {
                 grouped[key]['LCSM'] = lcsm;
@@ -207,9 +208,9 @@ function extractCustomerData(rawData, headers) {
     });
 
     const result = Object.values(grouped);
-    result.forEach((entry, idx) => {
-        if (!entry['Customer Name']) {
-            entry['Customer Name'] = `Customer ${idx + 1}`;
+    result.forEach(entry => {
+        if (!entry['Customer Name'] || !String(entry['Customer Name']).trim()) {
+            entry['Customer Name'] = entry['Customer Number'] ? String(entry['Customer Number']).trim() : '';
         }
     });
     return result;
