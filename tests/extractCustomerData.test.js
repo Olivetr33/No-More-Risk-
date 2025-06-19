@@ -25,3 +25,25 @@ test('extractCustomerData aggregates by customer number', () => {
     expect(row['Total Risk']).toBe(12);
     expect(row['Customer Number']).toBe('123');
 });
+
+test('uses real customer name when available', () => {
+    const headers = ['Customer Number', 'ARR', 'Total Risk', 'Customer Name'];
+    const data = [
+        { 'Customer Number': '1', ARR: '500', 'Total Risk': '1', 'Customer Name': '' },
+        { 'Customer Number': '1', ARR: '500', 'Total Risk': '2', 'Customer Name': 'Alpha' }
+    ];
+    const result = extractCustomerData(data, headers);
+    expect(result).toHaveLength(1);
+    expect(result[0]['Customer Name']).toBe('Alpha');
+});
+
+test('falls back to placeholder when no name exists', () => {
+    const headers = ['Customer Number', 'ARR', 'Total Risk'];
+    const data = [
+        { 'Customer Number': '2', ARR: '100', 'Total Risk': '5' },
+        { 'Customer Number': '2', ARR: '200', 'Total Risk': '1' }
+    ];
+    const result = extractCustomerData(data, headers);
+    expect(result).toHaveLength(1);
+    expect(result[0]['Customer Name']).toMatch(/^Customer \d+/);
+});
