@@ -37,7 +37,8 @@ const displayColumns = ["ARR", "Customer Name", "LCSM", "Total Risk", "Actions"]
 // KORRIGIERT: IDENTISCHE Spalten-Mapping in allen Dateien
 const COLUMN_MAPPINGS = {
     'LCSM': ['LCSM', 'lcsm', 'Lcsm', 'LcsM', 'SACHBEARBEITER', 'sachbearbeiter', 'Sachbearbeiter', 'CSM', 'csm', 'Manager', 'manager', 'MANAGER', 'Betreuer', 'betreuer', 'BETREUER'],
-    'Customer Name': ['Customer Name', 'customer name', 'CUSTOMER NAME', 'CustomerName', 'customername', 'CUSTOMERNAME', 'Customer Number', 'customer number', 'CUSTOMER NUMBER', 'CustomerNumber', 'customernumber', 'CUSTOMERNUMBER', 'Kunde', 'kunde', 'KUNDE', 'Kundenname', 'kundenname', 'KUNDENNAME', 'Kundennummer', 'kundennummer', 'KUNDENNUMMER', 'Name', 'name', 'NAME', 'Client', 'client', 'CLIENT'],
+    'Customer Name': ['Customer Name', 'customer name', 'CUSTOMER NAME', 'CustomerName', 'customername', 'CUSTOMERNAME', 'Kunde', 'kunde', 'KUNDE', 'Kundenname', 'kundenname', 'KUNDENNAME', 'Name', 'name', 'NAME', 'Client', 'client', 'CLIENT'],
+    'Customer Number': ['Customer Number', 'customer number', 'CUSTOMER NUMBER', 'CustomerNumber', 'customernumber', 'CUSTOMERNUMBER', 'Customer ID', 'customer id', 'CustomerID', 'CUSTOMERID', 'Kundennummer', 'kundennummer', 'KUNDENNUMMER'],
     'Total Risk': ['Total Risk', 'total risk', 'TOTAL RISK', 'TotalRisk', 'totalrisk', 'TOTALRISK', 'Risk', 'risk', 'RISK', 'Risiko', 'risiko', 'RISIKO', 'Score', 'score', 'SCORE', 'Risk Score', 'risk score', 'RISK SCORE', 'RiskScore', 'riskscore', 'RISKSCORE'],
     'ARR': ['ARR', 'arr', 'Arr', 'Annual Recurring Revenue', 'annual recurring revenue', 'ANNUAL RECURRING REVENUE', 'Revenue', 'revenue', 'REVENUE', 'Umsatz', 'umsatz', 'UMSATZ', 'Vertragswert', 'vertragswert', 'VERTRAGSWERT', 'Value', 'value', 'VALUE', 'Wert', 'wert', 'WERT', 'Amount', 'amount', 'AMOUNT']
 };
@@ -152,6 +153,7 @@ function extractCustomerData(rawData, headers) {
     
     const lcsmColumn = findColumnName(headers, 'LCSM');
     const customerColumn = findColumnName(headers, 'Customer Name');
+    const numberColumn = findColumnName(headers, 'Customer Number');
     const riskColumn = findColumnName(headers, 'Total Risk');
     const arrColumn = findColumnName(headers, 'ARR');
     
@@ -159,36 +161,55 @@ function extractCustomerData(rawData, headers) {
         LCSM: lcsmColumn,
         'Customer Name': customerColumn,
         'Total Risk': riskColumn,
-        'ARR': arrColumn
+        'ARR': arrColumn,
+        'Customer Number': numberColumn
     });
-    
-    return rawData.map((row, index) => {
-        const customerName = customerColumn ? (row[customerColumn] || `Customer ${index + 1}`) : `Customer ${index + 1}`;
-        const lcsm = lcsmColumn ? (row[lcsmColumn] || 'N/A') : 'N/A';
-        
-        const totalRisk = riskColumn ? extractNumber(row[riskColumn]) : 0;
+
+    const grouped = {};
+
+    rawData.forEach((row, index) => {
+        const key = numberColumn ? String(row[numberColumn]).trim().toLowerCase() : `row_${index}`;
         const arr = arrColumn ? extractNumber(row[arrColumn]) : 0;
-        
-        const extractedData = {
-            ...row,
-            'Customer Name': customerName,
-            'LCSM': lcsm,
-            'Total Risk': totalRisk,
-            'ARR': arr
-        };
-        
-        console.log(`APP: Extracted customer ${index + 1}:`, {
-            name: customerName,
+        const risk = riskColumn ? extractNumber(row[riskColumn]) : 0;
+        const name = customerColumn ? row[customerColumn] : '';
+        const lcsm = lcsmColumn ? row[lcsmColumn] : '';
+
+        if (!grouped[key]) {
+            grouped[key] = {
+                ...row,
+                'Customer Name': name || `Customer ${index + 1}`,
+                'Customer Number': row[numberColumn],
+                'LCSM': lcsm || 'N/A',
+                'Total Risk': risk,
+                'ARR': arr
+            };
+        } else {
+            if (risk > grouped[key]['Total Risk']) {
+                grouped[key]['Total Risk'] = risk;
+            }
+            grouped[key]['ARR'] += arr;
+
+            if (name && (!grouped[key]['Customer Name'] || name.length > grouped[key]['Customer Name'].length)) {
+                grouped[key]['Customer Name'] = name;
+            }
+            if (lcsm && (!grouped[key]['LCSM'] || grouped[key]['LCSM'] === 'N/A')) {
+                grouped[key]['LCSM'] = lcsm;
+            }
+        }
+
+        console.log(`APP: Processed customer ${index + 1}:`, {
+            name: name,
             lcsm: lcsm,
-            risk: totalRisk,
+            risk: risk,
             arr: arr,
-            originalARR: row[arrColumn],
-            originalRisk: row[riskColumn]
+            key: key
         });
-        
-        return extractedData;
     });
+
+    return Object.values(grouped);
 }
+
+window.extractCustomerData = extractCustomerData;
 
 function saveSession() {
     const sessionData = {
