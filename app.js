@@ -177,7 +177,7 @@ function extractCustomerData(rawData, headers) {
         if (!grouped[key]) {
             grouped[key] = {
                 ...row,
-                'Customer Name': name || `Customer ${index + 1}`,
+                'Customer Name': name || '',
                 'Customer Number': row[numberColumn],
                 'LCSM': lcsm || 'N/A',
                 'Total Risk': risk,
@@ -189,7 +189,7 @@ function extractCustomerData(rawData, headers) {
             }
             grouped[key]['ARR'] += arr;
 
-            if (name && (!grouped[key]['Customer Name'] || name.length > grouped[key]['Customer Name'].length)) {
+            if (!grouped[key]['Customer Name'] && name) {
                 grouped[key]['Customer Name'] = name;
             }
             if (lcsm && (!grouped[key]['LCSM'] || grouped[key]['LCSM'] === 'N/A')) {
@@ -206,7 +206,13 @@ function extractCustomerData(rawData, headers) {
         });
     });
 
-    return Object.values(grouped);
+    const result = Object.values(grouped);
+    result.forEach((entry, idx) => {
+        if (!entry['Customer Name']) {
+            entry['Customer Name'] = `Customer ${idx + 1}`;
+        }
+    });
+    return result;
 }
 
 window.extractCustomerData = extractCustomerData;
