@@ -8,6 +8,623 @@
     <script src="./libs/xlsx.full.min.js"></script>
     <script src="logger.js"></script>
     <script src="utils.js"></script>
+    
+    <!-- WIEDERHERGESTELLT: Vollständiges RiskMap CSS Design -->
+    <style>
+        /* Base Styles */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background: #181a1b;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            overflow-x: hidden !important;
+            max-width: 100vw !important;
+            box-sizing: border-box;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        /* Background Video */
+        .background-video-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .background-video-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .background-blur-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(3px);
+        }
+
+        /* App Foreground */
+        .app-foreground {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -20px;
+            width: 270px;
+            height: 100vh;
+            background: rgba(30, 30, 30, 0.95);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0 25px 25px 0;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            padding: 20px 20px 20px 40px;
+            box-shadow: 
+                5px 0 25px rgba(0, 0, 0, 0.3),
+                0 0 30px rgba(255, 210, 33, 0.1);
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 0;
+        }
+
+        .sidebar-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-nav li {
+            margin-bottom: 15px;
+        }
+
+        .sidebar-footer {
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: auto;
+        }
+
+        /* Sidebar Buttons */
+        .sidebar-btn {
+            width: 100%;
+            min-height: 65px;
+            padding: 20px 25px;
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            color: #ffffff;
+            border-radius: 0 25px 25px 0;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            display: block;
+            position: relative;
+            transform: translateX(-10px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            outline: none;
+            overflow: visible;
+            z-index: 10;
+        }
+
+        .sidebar-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(15px);
+            box-shadow: 
+                0 8px 25px rgba(255, 210, 33, 0.3),
+                0 0 20px rgba(255, 210, 33, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-btn.active {
+            background: rgba(255, 210, 33, 0.2) !important;
+            border: 2px solid #ffd221 !important;
+            color: #ffd221 !important;
+            cursor: default !important;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+            padding-bottom: 120px;
+            transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+            overflow-x: hidden !important;
+            width: calc(100vw - 250px);
+            min-height: calc(100vh - 120px);
+        }
+
+        .main-content.slider-open {
+            width: calc(100vw - 250px - 80px);
+            margin-right: 80px;
+        }
+
+        /* Slider Panel */
+        .slider-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: calc(100vw - 250px);
+            height: 100vh;
+            background: rgba(10, 10, 10, 0.98);
+            backdrop-filter: blur(25px);
+            z-index: 2000;
+            transition: right 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+            overflow: hidden;
+            color: #ffffff;
+            box-shadow: -30px 0 60px rgba(0, 0, 0, 0.8);
+            border-radius: 25px 0 0 25px;
+        }
+
+        .slider-panel.active {
+            right: 0;
+            border-left: 4px solid transparent;
+            border-image: linear-gradient(
+                to bottom,
+                transparent 0%,
+                transparent 15%,
+                rgba(255, 210, 33, 0.3) 20%,
+                rgba(255, 210, 33, 0.8) 40%,
+                #ffd221 50%,
+                rgba(255, 210, 33, 0.8) 60%,
+                rgba(255, 210, 33, 0.3) 80%,
+                transparent 85%,
+                transparent 100%
+            ) 1;
+            box-shadow: 
+                -30px 0 60px rgba(0, 0, 0, 0.8),
+                0 0 40px rgba(255, 210, 33, 0.6),
+                inset 0 0 40px rgba(255, 210, 33, 0.15);
+            animation: neonPulse 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes neonPulse {
+            0% {
+                box-shadow: 
+                    -30px 0 60px rgba(0, 0, 0, 0.8),
+                    0 0 30px rgba(255, 210, 33, 0.5),
+                    inset 0 0 30px rgba(255, 210, 33, 0.1);
+            }
+            100% {
+                box-shadow: 
+                    -30px 0 60px rgba(0, 0, 0, 0.8),
+                    0 0 60px rgba(255, 210, 33, 0.9),
+                    inset 0 0 60px rgba(255, 210, 33, 0.25);
+            }
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 35px;
+            border-bottom: 3px solid rgba(255, 210, 33, 0.4);
+            background: linear-gradient(135deg, rgba(255, 210, 33, 0.15), rgba(255, 180, 0, 0.08));
+            border-radius: 25px 0 0 0;
+            position: sticky;
+            top: 0;
+            z-index: 15;
+        }
+
+        .slider-header h2 {
+            color: #ffd221;
+            margin: 0;
+            font-size: 36px;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255, 210, 33, 0.6);
+        }
+
+        .close-slider-btn {
+            background: none;
+            border: none;
+            color: #ffffff;
+            font-size: 36px;
+            cursor: pointer;
+            padding: 12px 18px;
+            border-radius: 50%;
+            transition: all 0.4s ease;
+        }
+
+        .close-slider-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: rotate(90deg);
+            color: #ffd221;
+            box-shadow: 0 0 20px rgba(255, 210, 33, 0.5);
+        }
+
+        /* Slider Content */
+        .slider-content {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 120px);
+            overflow: hidden;
+        }
+
+        /* Static Filters */
+        .slider-filters-static {
+            position: sticky;
+            top: 0;
+            z-index: 14;
+            background: rgba(10, 10, 10, 0.98);
+            padding: 25px 35px;
+            border-bottom: 2px solid rgba(255, 210, 33, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .slider-filters-static h3 {
+            color: #ffd221;
+            margin: 0 0 20px 0;
+            font-size: 20px;
+            text-shadow: 0 0 10px rgba(255, 210, 33, 0.5);
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .sort-btn {
+            padding: 15px 25px;
+            background: rgba(255, 210, 33, 0.1);
+            border: 2px solid #ffd221;
+            color: #ffd221;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 16px;
+            font-weight: 600;
+            min-width: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sort-btn:hover {
+            background: rgba(255, 210, 33, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 210, 33, 0.3);
+        }
+
+        .sort-btn.active {
+            background: rgba(255, 210, 33, 0.3);
+            border-color: #ffb800;
+            color: #ffb800;
+            box-shadow: 0 0 15px rgba(255, 210, 33, 0.5);
+        }
+
+        .sort-text {
+            margin-right: 10px;
+        }
+
+        .sort-arrow {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        /* Static Stats */
+        .slider-stats-static {
+            position: sticky;
+            top: 0;
+            z-index: 13;
+            background: rgba(10, 10, 10, 0.98);
+            padding: 20px 35px;
+            border-bottom: 2px solid rgba(255, 210, 33, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: #cccccc;
+            font-size: 16px;
+        }
+
+        .stat-value {
+            color: #ffd221;
+            font-weight: bold;
+            font-size: 20px;
+            text-shadow: 0 0 10px rgba(255, 210, 33, 0.5);
+        }
+
+        /* Scrollable Table Section */
+        .slider-table-section {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            padding: 0 35px;
+        }
+
+        .slider-table-section h3 {
+            color: #ffd221;
+            margin: 20px 0;
+            font-size: 22px;
+            text-shadow: 0 0 10px rgba(255, 210, 33, 0.5);
+        }
+
+        .slider-table-scrollable {
+            flex: 1;
+            overflow-y: auto;
+            border: 2px solid rgba(255, 210, 33, 0.3);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            margin-bottom: 35px;
+            position: relative;
+        }
+
+        .slider-data-table {
+            width: 100%;
+            border-collapse: collapse;
+            color: #ffffff;
+        }
+
+        .slider-data-table thead {
+            background: rgba(255, 210, 33, 0.15);
+            position: sticky;
+            top: 0;
+            z-index: 12;
+            backdrop-filter: blur(15px);
+        }
+
+        .slider-data-table th {
+            padding: 15px 12px;
+            text-align: left;
+            color: #ffd221;
+            font-weight: bold;
+            border-bottom: 2px solid rgba(255, 210, 33, 0.3);
+            font-size: 14px;
+            background: rgba(10, 10, 10, 0.95);
+        }
+
+        .slider-data-table td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 13px;
+        }
+
+        .slider-data-table tbody tr:hover {
+            background: rgba(255, 210, 33, 0.1);
+        }
+
+        /* Risk Bars */
+        .risk-bar-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .risk-bar-bg {
+            width: 80px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .risk-bar-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            background: linear-gradient(90deg, currentColor 0%, rgba(255, 255, 255, 0.3) 100%);
+        }
+
+        .risk-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        /* Table Action Buttons */
+        .table-action-btn {
+            padding: 6px 12px;
+            margin: 2px;
+            background: rgba(255, 210, 33, 0.1);
+            border: 1px solid #ffd221;
+            color: #ffd221;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .table-action-btn:hover {
+            background: rgba(255, 210, 33, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .table-action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Footer */
+        .footer-transparent {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: transparent;
+            z-index: 3000;
+            padding: 20px 0;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        .footer-transparent.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .footer-content-transparent {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .github-link {
+            color: #ffffff;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 12px 24px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 25px;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .github-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.6);
+            transform: translateY(-2px);
+        }
+
+        /* Toast Container */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+        }
+
+        .toast {
+            background: rgba(76, 175, 80, 0.9);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            font-weight: 500;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* Quick Note Styles - FIXED positioning to match app.html */
+        .quicknote-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: flex-end;
+            align-items: center;
+            z-index: 5000;
+            padding-right: 20px;
+        }
+
+        .quicknote-panel {
+            background: rgba(15, 15, 15, 0.98);
+            border-radius: 15px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80%;
+            overflow: auto;
+            border: 2px solid rgba(255, 210, 33, 0.3);
+            margin-right: 0;
+        }
+
+        .quicknote-slider-fixed {
+            position: fixed !important;
+            top: 0 !important;
+            right: 0 !important;
+            left: auto !important;
+            width: calc(100vw - 250px) !important;
+            height: 100vh !important;
+            background: rgba(10, 10, 10, 0.98) !important;
+            backdrop-filter: blur(25px) !important;
+            z-index: 5000 !important;
+            overflow: hidden !important;
+            color: #ffffff !important;
+            box-shadow: -30px 0 60px rgba(0, 0, 0, 0.8) !important;
+            border-radius: 25px 0 0 25px !important;
+            border-left: 4px solid rgba(255, 210, 33, 0.5) !important;
+            transform: translateX(0) !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .quicknote-overlay {
+            display: block !important;
+            justify-content: flex-end !important;
+            align-items: stretch !important;
+            padding: 0 !important;
+        }
+
+        .quicknote-overlay .quicknote-panel {
+            width: 100% !important;
+            max-width: none !important;
+            height: 100% !important;
+            max-height: none !important;
+            margin: 0 !important;
+            border-radius: 25px 0 0 25px !important;
+            position: relative !important;
+            right: 0 !important;
+            left: auto !important;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .slider-panel {
+                width: 100vw;
+                right: -100vw;
+            }
+            
+            .main-content.slider-open {
+                width: calc(100vw - 250px);
+                margin-right: 0;
+            }
+            
+            .filter-buttons {
+                flex-direction: column;
+            }
+            
+            .footer-content-transparent {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
 </head>
 <body>
     <!-- Background Video -->
@@ -124,523 +741,171 @@
         </div>
     </div>
 
-    <!-- Styles -->
-    <style>
-        html, body {
-            overflow-x: hidden !important;
-            max-width: 100vw !important;
-            box-sizing: border-box;
-        }
-
-        *, *::before, *::after {
-            box-sizing: border-box;
-        }
-
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: -20px;
-            width: 270px;
-            height: 100vh;
-            background: rgba(30, 30, 30, 0.95);
-            backdrop-filter: blur(10px);
-            border-right: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 0 25px 25px 0;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            padding: 20px 20px 20px 40px;
-            box-shadow: 
-                5px 0 25px rgba(0, 0, 0, 0.3),
-                0 0 30px rgba(255, 210, 33, 0.1);
-        }
-
-        .sidebar-nav {
-            flex: 1;
-            padding: 0;
-        }
-
-        .sidebar-nav ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .sidebar-nav li {
-            margin-bottom: 15px;
-        }
-
-        .sidebar-footer {
-            padding-top: 20px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            margin-top: auto;
-        }
-
-        .sidebar-btn {
-            width: 100%;
-            min-height: 65px;
-            padding: 20px 25px;
-            background: rgba(255, 255, 255, 0.05);
-            border: none;
-            color: #ffffff;
-            border-radius: 0 25px 25px 0;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-            font-size: 16px;
-            font-weight: 600;
-            text-align: center;
-            display: block;
-            position: relative;
-            transform: translateX(-10px);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-            outline: none;
-            overflow: visible;
-            z-index: 10;
-        }
-
-        .sidebar-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, rgba(255, 210, 33, 0.1), rgba(255, 255, 255, 0.05));
-            border-radius: 0 25px 25px 0;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .sidebar-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            transform: translateX(15px);
-            box-shadow: 
-                0 8px 25px rgba(255, 210, 33, 0.3),
-                0 0 20px rgba(255, 210, 33, 0.2),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        }
-
-        .sidebar-btn:hover::before {
-            opacity: 1;
-        }
-
-        .sidebar-btn:active {
-            transform: translateX(8px);
-        }
-
-        .sidebar-btn:focus {
-            outline: 2px solid #ffd221;
-            outline-offset: 2px;
-        }
-
-        .sidebar-btn-layout.active {
-            background: rgba(255, 210, 33, 0.2) !important;
-            border: 2px solid #ffd221 !important;
-            color: #ffd221 !important;
-            cursor: default !important;
-        }
-
-        .sidebar-btn-layout.active:hover {
-            transform: translateX(-10px) !important;
-        }
-
-        .logout-btn {
-            background: rgba(244, 67, 54, 0.1) !important;
-            border: 2px solid #f44336 !important;
-            color: #f44336 !important;
-            position: relative !important;
-            z-index: 100 !important;
-        }
-
-        .logout-btn::after {
-            content: '';
-            position: absolute;
-            top: -10px;
-            bottom: -10px;
-            left: -10px;
-            right: -10px;
-            z-index: -1;
-            cursor: pointer;
-        }
-
-        .logout-btn:hover {
-            background: rgba(244, 67, 54, 0.2) !important;
-            border-color: #ff5722 !important;
-            color: #ff5722 !important;
-        }
-
-        .logout-btn::before {
-            background: linear-gradient(135deg, rgba(244, 67, 54, 0.1), rgba(255, 87, 34, 0.05)) !important;
-        }
-
-        .main-content {
-            margin-left: 250px;
-            padding: 20px;
-            padding-bottom: 120px;
-            transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
-            overflow-x: hidden !important;
-            width: calc(100vw - 250px);
-            min-height: calc(100vh - 120px);
-        }
-
-        .main-content.slider-open {
-            width: calc(100vw - 250px - 80px);
-            margin-right: 80px;
-        }
-
-        .slider-panel {
-            position: fixed;
-            top: 0;
-            right: -100vw;
-            width: calc(100vw - 250px);
-            height: 100vh;
-            background: rgba(10, 10, 10, 0.98);
-            backdrop-filter: blur(25px);
-            z-index: 2000;
-            transition: right 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
-            overflow: hidden;
-            color: #ffffff;
-            box-shadow: -30px 0 60px rgba(0, 0, 0, 0.8);
-            border-radius: 25px 0 0 25px;
-        }
-
-        .slider-panel.active {
-            right: 0;
-            border-left: 4px solid transparent;
-            border-image: linear-gradient(
-                to bottom,
-                transparent 0%,
-                transparent 15%,
-                rgba(255, 210, 33, 0.3) 20%,
-                rgba(255, 210, 33, 0.8) 40%,
-                #ffd221 50%,
-                rgba(255, 210, 33, 0.8) 60%,
-                rgba(255, 210, 33, 0.3) 80%,
-                transparent 85%,
-                transparent 100%
-            ) 1;
-            box-shadow: 
-                -30px 0 60px rgba(0, 0, 0, 0.8),
-                0 0 40px rgba(255, 210, 33, 0.6),
-                inset 0 0 40px rgba(255, 210, 33, 0.15);
-            animation: neonPulse 2s ease-in-out infinite alternate;
-        }
-
-        @keyframes neonPulse {
-            0% {
-                box-shadow: 
-                    -30px 0 60px rgba(0, 0, 0, 0.8),
-                    0 0 30px rgba(255, 210, 33, 0.5),
-                    inset 0 0 30px rgba(255, 210, 33, 0.1);
-            }
-            100% {
-                box-shadow: 
-                    -30px 0 60px rgba(0, 0, 0, 0.8),
-                    0 0 60px rgba(255, 210, 33, 0.9),
-                    inset 0 0 60px rgba(255, 210, 33, 0.25);
-            }
-        }
-
-        .slider-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 35px;
-            border-bottom: 3px solid rgba(255, 210, 33, 0.4);
-            background: linear-gradient(135deg, rgba(255, 210, 33, 0.15), rgba(255, 180, 0, 0.08));
-            border-radius: 25px 0 0 0;
-            position: sticky;
-            top: 0;
-            z-index: 15;
-        }
-
-        .slider-header h2 {
-            color: #ffd221;
-            margin: 0;
-            font-size: 36px;
-            font-weight: bold;
-            text-shadow: 0 0 20px rgba(255, 210, 33, 0.6);
-        }
-
-        .close-slider-btn {
-            background: none;
-            border: none;
-            color: #ffffff;
-            font-size: 36px;
-            cursor: pointer;
-            padding: 12px 18px;
-            border-radius: 50%;
-            transition: all 0.4s ease;
-        }
-
-        .close-slider-btn:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: rotate(90deg);
-            color: #ffd221;
-            box-shadow: 0 0 20px rgba(255, 210, 33, 0.5);
-        }
-
-        .slider-content {
-            display: flex;
-            flex-direction: column;
-            height: calc(100vh - 120px);
-            overflow: hidden;
-        }
-
-        .slider-filters-static {
-            position: sticky;
-            top: 0;
-            z-index: 14;
-            background: rgba(10, 10, 10, 0.98);
-            padding: 25px 35px;
-            border-bottom: 2px solid rgba(255, 210, 33, 0.3);
-            backdrop-filter: blur(10px);
-        }
-
-        .slider-filters-static h3 {
-            color: #ffd221;
-            margin: 0 0 20px 0;
-            font-size: 20px;
-            text-shadow: 0 0 10px rgba(255, 210, 33, 0.5);
-        }
-
-        .filter-buttons {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-
-        .sort-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 15px 25px;
-            background: rgba(255, 210, 33, 0.1);
-            border: 2px solid #ffd221;
-            color: #ffd221;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 16px;
-            font-weight: 600;
-            min-width: 120px;
-        }
-
-        .sort-btn:hover {
-            background: rgba(255, 210, 33, 0.2);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(255, 210, 33, 0.3);
-        }
-
-        .sort-btn.active {
-            background: rgba(255, 210, 33, 0.3);
-            border-color: #ffb800;
-            color: #ffb800;
-            box-shadow: 0 0 15px rgba(255, 210, 33, 0.5);
-        }
-
-        .sort-text {
-            font-weight: 600;
-            font-size: 16px;
-            line-height: 1;
-        }
-
-        .sort-arrow {
-            font-size: 18px;
-            line-height: 1;
-            display: flex;
-            align-items: center;
-            font-weight: bold;
-        }
-
-        .slider-stats-static {
-            position: sticky;
-            top: 0;
-            z-index: 13;
-            background: rgba(10, 10, 10, 0.98);
-            padding: 20px 35px;
-            border-bottom: 2px solid rgba(255, 210, 33, 0.3);
-            backdrop-filter: blur(10px);
-        }
-
-        .stat-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-        }
-
-        .stat-item:last-child {
-            border-bottom: none;
-        }
-
-        .stat-label {
-            color: #cccccc;
-            font-size: 16px;
-        }
-
-        .stat-value {
-            color: #ffd221;
-            font-weight: bold;
-            font-size: 20px;
-            text-shadow: 0 0 10px rgba(255, 210, 33, 0.5);
-        }
-
-        .slider-table-section {
-            flex: 1;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            padding: 0 35px;
-        }
-
-        .slider-table-section h3 {
-            color: #ffd221;
-            margin: 20px 0;
-            font-size: 22px;
-            text-shadow: 0 0 10px rgba(255, 210, 33, 0.5);
-        }
-
-        .slider-table-scrollable {
-            flex: 1;
-            overflow-y: auto;
-            border: 2px solid rgba(255, 210, 33, 0.3);
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.02);
-            margin-bottom: 100px;
-            position: relative;
-        }
-
-        .slider-table-scrollable::before {
-            content: '';
-            position: sticky;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 60px;
-            background: linear-gradient(
-                to bottom,
-                rgba(10, 10, 10, 0.98) 0%,
-                rgba(10, 10, 10, 0.95) 20%,
-                rgba(10, 10, 10, 0.8) 40%,
-                rgba(10, 10, 10, 0.6) 60%,
-                rgba(10, 10, 10, 0.3) 80%,
-                transparent 100%
-            );
-            z-index: 11;
-            pointer-events: none;
-            backdrop-filter: blur(8px);
-        }
-
-        .slider-data-table {
-            width: 100%;
-            border-collapse: collapse;
-            color: #ffffff;
-        }
-
-        .slider-data-table thead {
-            background: rgba(255, 210, 33, 0.15);
-            position: sticky;
-            top: 0;
-            z-index: 12;
-            backdrop-filter: blur(15px);
-        }
-
-        .slider-data-table th {
-            padding: 15px 12px;
-            text-align: left;
-            color: #ffd221;
-            font-weight: bold;
-            border-bottom: 2px solid rgba(255, 210, 33, 0.3);
-            font-size: 14px;
-            background: rgba(10, 10, 10, 0.95);
-        }
-
-        .slider-data-table td {
-            padding: 12px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 13px;
-        }
-
-        .slider-data-table tbody tr:hover {
-            background: rgba(255, 210, 33, 0.1);
-        }
-
-        .risk-bar-container {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .risk-bar-bg {
-            width: 80px;
-            height: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .risk-bar-fill {
-            height: 100%;
-            border-radius: 10px;
-            transition: all 0.3s ease;
-            background: linear-gradient(90deg, currentColor 0%, rgba(255, 255, 255, 0.3) 100%);
-        }
-
-        .risk-badge {
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 10px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .footer-transparent {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: transparent;
-            z-index: 3000;
-            padding: 20px 0;
-            transition: opacity 0.5s ease, visibility 0.5s ease;
-        }
-
-        .footer-content-transparent {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 30px;
-        }
-
-        .github-link {
-            color: #ffffff;
-            text-decoration: none;
-            font-weight: 500;
-            padding: 12px 24px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 25px;
-            transition: all 0.3s ease;
-            font-size: 14px;
-        }
-
-        .github-link:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.6);
-            transform: translateY(-2px);
-        }
-
-
-    <!-- KORRIGIERTES JavaScript - Mit IDENTISCHER extractNumber() Funktion wie in app.js -->
+    <!-- KORRIGIERT: Alle inline Styles entfernt -->
     <script>
-        const { DataUtils, SessionManager } = window.AppUtils;
+        // KORRIGIERT: SessionManager muss direkt von localStorage gelesen werden
+        const SessionManager = {
+            getAllCustomers: function() {
+                try {
+                    const keys = ['riskerSessionData', 'sessionData', 'appData'];
+                    
+                    for (const key of keys) {
+                        const data = localStorage.getItem(key);
+                        if (data) {
+                            const parsed = JSON.parse(data);
+                            console.log(`RISKMAP: Found data in ${key}:`, parsed);
+                            
+                            // Prüfe verschiedene mögliche Datenstrukturen
+                            if (parsed.filteredData && Array.isArray(parsed.filteredData)) {
+                                console.log(`RISKMAP: Using filteredData (${parsed.filteredData.length} items)`);
+                                return parsed.filteredData;
+                            }
+                            if (parsed.aggregatedData && Array.isArray(parsed.aggregatedData)) {
+                                console.log(`RISKMAP: Using aggregatedData (${parsed.aggregatedData.length} items)`);
+                                return parsed.aggregatedData;
+                            }
+                            if (parsed.excelData && Array.isArray(parsed.excelData)) {
+                                console.log(`RISKMAP: Using excelData (${parsed.excelData.length} items)`);
+                                return parsed.excelData;
+                            }
+                        }
+                    }
+                    
+                    console.warn('RISKMAP: No customer data found in localStorage');
+                    return [];
+                } catch (error) {
+                    console.error('RISKMAP: Error loading customer data:', error);
+                    return [];
+                }
+            },
+            
+            notes: {},
+            archivedRows: []
+        };
+        
+        // KORRIGIERT: AppUtils Mock für RiskMap
+        const AppUtils = {
+            SessionManager: SessionManager,
+            
+            DataUtils: {
+                generateCustomerKey: function(customer) {
+                    const name = customer['Customer Name'] || customer['Kunde'] || customer['Name'] || 'unknown';
+                    const lcsm = customer['LCSM'] || customer['lcsm'] || 'unknown';
+                    return `${name}_${lcsm}`.toLowerCase().replace(/[^a-z0-9_]/g, '');
+                }
+            },
+            
+            escapeHtml: function(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            },
+            
+            handleFileUpload: function(file, successCallback, errorCallback) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, {type: 'array'});
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+                        
+                        if (jsonData.length < 2) {
+                            throw new Error('File must contain at least header and one data row');
+                        }
+                        
+                        const headers = jsonData[0];
+                        const rows = jsonData.slice(1).map(row => {
+                            const obj = {};
+                            headers.forEach((header, index) => {
+                                obj[header] = row[index] || '';
+                            });
+                            return obj;
+                        });
+                        
+                        successCallback(rows, headers);
+                    } catch (error) {
+                        errorCallback(error);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            },
+            
+            FileInputUtils: {
+                reset: function(inputId) {
+                    const input = document.getElementById(inputId);
+                    if (input) {
+                        input.value = '';
+                        return input;
+                    }
+                    return null;
+                }
+            }
+        };
+
+        // KORRIGIERT: Initialisiere SessionManager mit localStorage Daten
+        function initializeSessionManager() {
+            try {
+                const keys = ['riskerSessionData', 'sessionData', 'appData'];
+                
+                for (const key of keys) {
+                    const data = localStorage.getItem(key);
+                    if (data) {
+                        const parsed = JSON.parse(data);
+                        
+                        // Lade Notizen
+                        if (parsed.notes) {
+                            SessionManager.notes = parsed.notes;
+                        }
+                        
+                        // Lade archivierte Einträge
+                        if (parsed.archivedRows) {
+                            SessionManager.archivedRows = parsed.archivedRows;
+                        }
+                        
+                        console.log(`RISKMAP: SessionManager initialized from ${key}`);
+                        break;
+                    }
+                }
+            } catch (error) {
+                console.error('RISKMAP: Error initializing SessionManager:', error);
+            }
+        }
+
+        // KORRIGIERT: Fehlende debounce Funktion hinzugefügt
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // KORRIGIERT: Fehlende bindQuickNoteButtons Funktion hinzugefügt
+        function bindQuickNoteButtons() {
+            document.querySelectorAll('.quicknote-btn').forEach(btn => {
+                btn.onclick = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const customerKey = this.getAttribute('data-customer');
+                    if (customerKey) {
+                        // Find customer index by key for RiskMap compatibility
+                        const index = riskmapData.findIndex(customer => 
+                            AppUtils.DataUtils.generateCustomerKey(customer) === customerKey
+                        );
+                        if (index !== -1) {
+                            openNoteModal(index);
+                        }
+                    }
+                };
+            });
+        }
+
         function saveCurrentSession(){
             try{
                 const data = localStorage.getItem('riskerSessionData');
@@ -832,6 +1097,33 @@
             });
         }
 
+        // KORRIGIERT: Fehlende updateStats Funktion hinzugefügt
+        function updateStats(data) {
+            try {
+                const totalCustomers = data.length;
+                const highRiskCustomers = data.filter(customer => {
+                    const risk = parseFloat(customer['Total Risk'] || customer['total_risk'] || customer['risk'] || 0);
+                    return risk > 10;
+                }).length;
+                const totalARR = data.reduce((sum, customer) => {
+                    const arr = parseFloat(customer['ARR'] || customer['arr'] || customer['revenue'] || 0);
+                    return sum + arr;
+                }, 0);
+
+                const totalCustomersEl = document.getElementById('totalCustomers');
+                const highRiskCustomersEl = document.getElementById('highRiskCustomers');
+                const totalARRel = document.getElementById('totalARR');
+
+                if (totalCustomersEl) totalCustomersEl.textContent = totalCustomers;
+                if (highRiskCustomersEl) highRiskCustomersEl.textContent = highRiskCustomers;
+                if (totalARRel) totalARRel.textContent = `€${totalARR.toLocaleString()}`;
+                
+                console.log('RISKMAP: Stats updated:', { totalCustomers, highRiskCustomers, totalARR });
+            } catch (error) {
+                console.error('RISKMAP: Error updating stats:', error);
+            }
+        }
+
         // Globale Funktionen für Sidebar-Buttons
         window.goToStart = function() {
             console.log('ShowData function called from RiskMap');
@@ -845,6 +1137,16 @@
 
         window.openHeatmap = function() {
             console.log('RiskMap toggle - already in RiskMap');
+        };
+
+        window.showKpiDashboard = function() {
+            console.log('KPI Dashboard function called from RiskMap');
+            window.location.href = 'app.html?openKPI=true';
+        };
+
+        window.toggleWorkflow = function() {
+            console.log('Workflow function called from RiskMap');
+            window.location.href = 'app.html?openWorkflow=true';
         };
 
         window.triggerUpload = function() {
@@ -893,9 +1195,22 @@
         // RiskMap State
         let riskmapData = [];
         function renderRiskMap(data) {
-            riskmapData = data || [];
-            updateRiskmapDisplay(riskmapData);
-            console.log('✅ Risk Map rendered with', riskmapData.length, 'entries');
+            try {
+                riskmapData = data || [];
+                console.log('🎯 Rendering RiskMap with', riskmapData.length, 'customers');
+                
+                if (riskmapData.length === 0) {
+                    showNoDataMessage();
+                    return;
+                }
+                
+                updateRiskmapDisplay(riskmapData);
+                console.log('✅ Risk Map rendered successfully');
+                
+            } catch (error) {
+                console.error('❌ Error rendering RiskMap:', error);
+                showNoDataMessage();
+            }
         }
         let currentSort = { column: 'Total Risk', direction: 'desc' };
 
@@ -904,17 +1219,56 @@
         let uploadInProgress = false;
 
         // Daten-Loading mit flexibler Spaltenerkennung
+        // KORRIGIERT: Verbesserte Datenladung
         function loadRiskmapData() {
             console.log('=== RiskMap Data Loading Started ===');
-            const allCustomers = AppUtils.SessionManager.getAllCustomers() || [];
-            console.log('📊 RiskMap source data:', allCustomers);
-            if (!allCustomers.length) {
+            
+            try {
+                // Initialisiere SessionManager zuerst
+                initializeSessionManager();
+                
+                const allCustomers = SessionManager.getAllCustomers() || [];
+                console.log('📊 RiskMap source data:', allCustomers);
+                
+                if (!allCustomers.length) {
+                    console.warn('⚠️ No customers found in session data');
+                    
+                    // Detaillierte Debug-Information
+                    const keys = ['riskerSessionData', 'sessionData', 'appData'];
+                    keys.forEach(key => {
+                        const data = localStorage.getItem(key);
+                        if (data) {
+                            try {
+                                const parsed = JSON.parse(data);
+                                console.log(`DEBUG: ${key} contains:`, Object.keys(parsed));
+                            } catch (e) {
+                                console.log(`DEBUG: ${key} parse error:`, e);
+                            }
+                        } else {
+                            console.log(`DEBUG: ${key} is empty`);
+                        }
+                    });
+                    
+                    showNoDataMessage();
+                    return;
+                }
+                
+                const activeCustomers = allCustomers.filter(c => !c.erledigt && !c.done && !c.completed && !c.archived);
+                console.log('📈 Active customers for RiskMap:', activeCustomers.length);
+                
+                if (activeCustomers.length === 0) {
+                    console.warn('⚠️ No active customers found (all might be archived)');
+                    showNoDataMessage();
+                    return;
+                }
+                
+                renderRiskMap(activeCustomers);
+                console.log('✅ RiskMap Data Loading SUCCESS');
+                
+            } catch (error) {
+                console.error('❌ Error loading RiskMap data:', error);
                 showNoDataMessage();
-                return;
             }
-            const activeCustomers = allCustomers.filter(c => !c.erledigt && !c.done && !c.completed && !c.archived);
-            renderRiskMap(activeCustomers);
-            console.log('=== RiskMap Data Loading SUCCESS ===');
         }
 
         function showNoDataMessage() {
@@ -937,130 +1291,170 @@
             if (totalARRel) totalARRel.textContent = '€0';
         }
 
+        // KORRIGIERT: Verbesserte updateRiskmapDisplay Funktion
         function updateRiskmapDisplay(data) {
-            console.log('RiskMap: Updating display with', data.length, 'customers');
-            updateStats(data);
-            renderCustomerTable(data);
-            updateSortButtons();
-        }
-
-        function updateStats(data) {
-            const totalCustomers = data.length;
-            const highRiskCustomers = data.filter(customer => {
-                const risk = parseFloat(customer['Total Risk'] || customer['total_risk'] || customer['risk'] || 0);
-                return risk > 10;
-            }).length;
-            const totalARR = data.reduce((sum, customer) => {
-                const arr = parseFloat(customer['ARR'] || customer['arr'] || 0);
-                return sum + arr;
-            }, 0);
-
-            document.getElementById('totalCustomers').textContent = totalCustomers;
-            document.getElementById('highRiskCustomers').textContent = highRiskCustomers;
-            document.getElementById('totalARR').textContent = `€${totalARR.toLocaleString()}`;
-        }
-
-        function renderCustomerTable(data) {
-            // FIXED: This function now uses explicitly passed data and does not rely on globals.
-            const tableBody = document.getElementById('riskmapTableBody');
-
-            if (data.length === 0) {
-                showNoDataMessage();
-                return;
+            try {
+                console.log('🔄 Updating RiskMap display with', data.length, 'customers');
+                updateStats(data);
+                renderCustomerTable(data);
+                updateSortButtons();
+                
+                // Bind note buttons after table is rendered
+                setTimeout(() => {
+                    bindQuickNoteButtons();
+                }, 100);
+                
+            } catch (error) {
+                console.error('❌ Error updating RiskMap display:', error);
             }
+        }
 
-            console.log('RiskMap: Rendering table with', data.length, 'customers');
+        // KORRIGIERT: Verbesserte renderCustomerTable Funktion mit besserer Fehlerbehandlung
+        function renderCustomerTable(data) {
+            try {
+                const tableBody = document.getElementById('riskmapTableBody');
+                if (!tableBody) {
+                    console.error('❌ Table body element not found');
+                    return;
+                }
 
-            // Sort data
-            const sortedData = [...data].sort((a, b) => {
-                let aVal, bVal;
-                
-                if (currentSort.column === 'ARR') {
-                    aVal = parseFloat(a['ARR'] || a['arr'] || 0);
-                    bVal = parseFloat(b['ARR'] || b['arr'] || 0);
-                } else if (currentSort.column === 'Total Risk') {
-                    aVal = parseFloat(a['Total Risk'] || a['total_risk'] || a['risk'] || 0);
-                    bVal = parseFloat(b['Total Risk'] || b['total_risk'] || b['risk'] || 0);
-                } else {
-                    return 0;
+                if (data.length === 0) {
+                    showNoDataMessage();
+                    return;
                 }
-                
-                if (currentSort.direction === 'asc') {
-                    return aVal - bVal;
-                } else {
-                    return bVal - aVal;
-                }
-            });
 
-            let tableHTML = '';
-            
-            sortedData.forEach((customer, index) => {
-                const customerName = customer['Customer Name'] || 
-                                   customer['Kunde'] || 
-                                   customer['Kundenname'] || 
-                                   customer['Customer'] || 
-                                   customer['Name'] || 
-                                   customer['name'] ||
-                                   customer['customer_name'] ||
-                                   customer['client_name'] ||
-                                   customer['company'] ||
-                                   customer['firma'] ||
-                                   `Customer ${index + 1}`;
-                                   
-                const lcsm = customer['LCSM'] || customer['lcsm'] || customer['manager'] || customer['csm'] || 'N/A';
-                const arr = parseFloat(customer['ARR'] || customer['arr'] || customer['revenue'] || 0);
-                const risk = parseFloat(customer['Total Risk'] || customer['total_risk'] || customer['risk'] || 0);
+                console.log('🔄 Rendering customer table with', data.length, 'customers');
+
+                // Sort data
+                const sortedData = [...data].sort((a, b) => {
+                    let aVal, bVal;
+                    
+                    if (currentSort.column === 'ARR') {
+                        aVal = parseFloat(a['ARR'] || a['arr'] || 0);
+                        bVal = parseFloat(b['ARR'] || b['arr'] || 0);
+                    } else if (currentSort.column === 'Total Risk') {
+                        aVal = parseFloat(a['Total Risk'] || a['total_risk'] || a['risk'] || 0);
+                        bVal = parseFloat(b['Total Risk'] || b['total_risk'] || b['risk'] || 0);
+                    } else {
+                        return 0;
+                    }
+                    
+                    if (currentSort.direction === 'asc') {
+                        return aVal - bVal;
+                    } else {
+                        return bVal - aVal;
+                    }
+                });
+
+                // KORRIGIERT: Dynamische Risk Level Berechnung basierend auf Daten
+                const allRiskValues = data.map(customer => parseFloat(customer['Total Risk'] || customer['total_risk'] || customer['risk'] || 0)).filter(risk => risk > 0);
+                const minRisk = allRiskValues.length > 0 ? Math.min(...allRiskValues) : 20;
+                const maxRisk = allRiskValues.length > 0 ? Math.max(...allRiskValues) : 180;
+                const riskRange = maxRisk - minRisk;
                 
-                let riskColor = '#4CAF50';
-                let riskBadge = 'LOW';
-                let riskBarWidth = '33%';
+                // Berechne dynamische Schwellenwerte
+                const lowThreshold = riskRange > 0 ? minRisk + (riskRange * 0.33) : 33;
+                const highThreshold = riskRange > 0 ? minRisk + (riskRange * 0.66) : 66;
+
+                console.log('🎯 Risk Thresholds:', { minRisk, maxRisk, riskRange, lowThreshold, highThreshold });
+
+                let tableHTML = '';
                 
-                if (risk >= 6 && risk <= 10) {
-                    riskColor = '#FF9800';
-                    riskBadge = 'MED';
-                    riskBarWidth = '66%';
-                }
-                if (risk >= 11) {
-                    riskColor = '#F44336';
-                    riskBadge = 'HIGH';
-                    riskBarWidth = '100%';
-                }
-                
-                tableHTML += `
-                    <tr>
-                        <td>${AppUtils.escapeHtml(customerName)}</td>
-                        <td>${AppUtils.escapeHtml(lcsm)}</td>
-                        <td>€${arr.toLocaleString()}</td>
-                        <td>${risk.toFixed(1)}</td>
-                        <td>
-                            <div class="risk-bar-container">
-                                <div class="risk-bar-bg">
-                                    <div class="risk-bar-fill" style="width: ${riskBarWidth}; background: ${riskColor};"></div>
+                sortedData.forEach((customer, index) => {
+                    const customerName = customer['Customer Name'] || 
+                                       customer['Kunde'] || 
+                                       customer['Kundenname'] || 
+                                       customer['Customer'] || 
+                                       customer['Name'] || 
+                                       customer['name'] ||
+                                       customer['customer_name'] ||
+                                       customer['client_name'] ||
+                                       customer['company'] ||
+                                       customer['firma'] ||
+                                       `Customer ${index + 1}`;
+                                       
+                    const lcsm = customer['LCSM'] || customer['lcsm'] || customer['manager'] || customer['csm'] || 'N/A';
+                    const arr = parseFloat(customer['ARR'] || customer['arr'] || customer['revenue'] || 0);
+                    const risk = parseFloat(customer['Total Risk'] || customer['total_risk'] || customer['risk'] || 0);
+                    
+                    // KORRIGIERT: Dynamische Risk Color/Badge Bestimmung
+                    let riskColor = '#4CAF50';  // Grün für LOW
+                    let riskBadge = 'LOW';
+                    let riskBarWidth = '33%';
+                    
+                    if (riskRange > 0) {
+                        if (risk <= lowThreshold) {
+                            riskColor = '#4CAF50';  // Grün
+                            riskBadge = 'LOW';
+                            riskBarWidth = '33%';
+                        } else if (risk <= highThreshold) {
+                            riskColor = '#FF9800';  // Orange  
+                            riskBadge = 'MED';
+                            riskBarWidth = '66%';
+                        } else {
+                            riskColor = '#F44336';  // Rot
+                            riskBadge = 'HIGH';
+                            riskBarWidth = '100%';
+                        }
+                    } else {
+                        // Fallback bei keiner Range
+                        if (risk <= 5) {
+                            riskColor = '#4CAF50';
+                            riskBadge = 'LOW';
+                            riskBarWidth = '33%';
+                        } else if (risk <= 10) {
+                            riskColor = '#FF9800';
+                            riskBadge = 'MED';
+                            riskBarWidth = '66%';
+                        } else {
+                            riskColor = '#F44336';
+                            riskBadge = 'HIGH';
+                            riskBarWidth = '100%';
+                        }
+                    }
+                    
+                    tableHTML += `
+                        <tr>
+                            <td>${AppUtils.escapeHtml(customerName)}</td>
+                            <td>${AppUtils.escapeHtml(lcsm)}</td>
+                            <td>€${arr.toLocaleString()}</td>
+                            <td>${risk.toFixed(1)}</td>
+                            <td>
+                                <div class="risk-bar-container">
+                                    <div class="risk-bar-bg">
+                                        <div class="risk-bar-fill" style="width: ${riskBarWidth}; background: ${riskColor};"></div>
+                                    </div>
+                                    <span class="risk-badge" style="background: ${riskColor}; color: #000;">${riskBadge}</span>
                                 </div>
-                                <span class="risk-badge" style="background: ${riskColor}; color: #000;">${riskBadge}</span>
-                            </div>
-                        </td>
-                        <td>
-                            <button class="table-action-btn" onclick="archiveCustomerRiskmap(${index}, this)" title="Archive this entry">Archive</button>
-                            <button class="table-action-btn" onclick="addToWorkflowRiskmap(${index})" title="Add to Workflow">➕ Add to Workflow</button>
-                            ${(() => {
-                                const key = AppUtils.DataUtils.generateCustomerKey(customer);
-                                const n = SessionManager.notes && SessionManager.notes[key];
-                                let preview = '';
-                                let hasNote = false;
-                                if(Array.isArray(n) && n.length){ preview = n[n.length-1].text.substring(0,50); hasNote = true; }
-                                else if(n && n.text){ preview = n.text.substring(0,50); hasNote = true; }
-                                const cls = hasNote ? ' quicknote-has-content' : '';
-                                return `<button class="table-action-btn note-btn quicknote-btn${cls}" data-customer="${index}" title="${preview}">🗒</button>`;
-                            })()}
-                        </td>
-                    </tr>
-                `;
-            });
-            
-            tableBody.innerHTML = tableHTML;
-            console.log('RiskMap: Table rendered successfully with', sortedData.length, 'rows');
-            bindQuickNoteButtons();
+                            </td>
+                            <td>
+                                <button class="table-action-btn" onclick="archiveCustomerRiskmap(${index}, this)" title="Archive this entry">Archive</button>
+                                <button class="table-action-btn" onclick="addToWorkflowRiskmap(${index})" title="Add to Workflow">➕ Add to Workflow</button>
+                                ${(() => {
+                                    const key = AppUtils.DataUtils.generateCustomerKey(customer);
+                                    const n = SessionManager.notes && SessionManager.notes[key];
+                                    let preview = '';
+                                    let hasNote = false;
+                                    if(Array.isArray(n) && n.length){ preview = n[n.length-1].text.substring(0,50); hasNote = true; }
+                                    else if(n && n.text){ preview = n.text.substring(0,50); hasNote = true; }
+                                    const cls = hasNote ? ' quicknote-has-content' : '';
+                                    return `<button class="table-action-btn note-btn quicknote-btn${cls}" data-customer="${key}" title="${preview}">🗒</button>`;
+                                })()}
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                tableBody.innerHTML = tableHTML;
+                console.log('✅ Customer table rendered successfully with', sortedData.length, 'rows');
+                
+                // Bind Quick Note buttons with unified functionality
+                bindQuickNoteButtons();
+                
+            } catch (error) {
+                console.error('❌ Error rendering customer table:', error);
+                showNoDataMessage();
+            }
         }
 
         // Archive entry with improved session sync
@@ -1136,7 +1530,7 @@
                 requestAnimationFrame(() => {
                     const row = btn ? btn.closest('tr') : null;
                     if (row) row.remove();
-                    updateStats();
+                    updateStats(riskmapData); // KORRIGIERT: Daten explizit übergeben
                     requestIdleCallback(() => {
                         markAsDoneRiskmap(idx);
                         showNotification('Customer archived successfully.');
@@ -1149,67 +1543,143 @@
         function openNoteModal(index){
             const customer = riskmapData[index];
             if(!customer) return;
-            requestAnimationFrame(() => {
+            
             const key = AppUtils.DataUtils.generateCustomerKey(customer);
-            let popup = document.getElementById('quickNoteSlider');
-            if(!popup){
-                popup = document.createElement('div');
-                popup.id = 'quickNoteSlider';
-                popup.className = 'quicknote-popup slider-panel quicknote-panel quicknote-slider-fixed quicknote-overlay';
-                document.body.appendChild(popup);
-            } else {
-                popup.className = 'quicknote-popup slider-panel quicknote-panel quicknote-slider-fixed quicknote-overlay';
-            }
+            
+            // Remove any existing Quick Note popup
+            const existingPopup = document.getElementById('quickNoteSlider');
+            if (existingPopup) existingPopup.remove();
+            
+            // Get customer data
+            const user = customer['LCSM'] || 'User';
+            
+            // Get existing notes
             const notesRaw = SessionManager.notes && SessionManager.notes[key];
             const notes = Array.isArray(notesRaw) ? notesRaw : (notesRaw ? [notesRaw] : []);
-            const user = customer['LCSM'] || 'User';
-            const notesHtml = notes.map(n=>{
+            
+            // Build notes HTML
+            const notesHtml = notes.map(n => {
                 const d = new Date(n.timestamp);
-                const date = d.toISOString().slice(0,10);
-                const time = d.toISOString().slice(11,16);
-                return `<tr class="table-row"><td class="note-date"><div class="date-wrapper"><span class="date">${date}</span><br /><span class="time">${time}</span></div></td><td class="table-cell">${AppUtils.escapeHtml(user)}</td><td class="table-cell note-text-cell">${AppUtils.escapeHtml(n.text)}</td></tr>`;
+                const date = d.toISOString().slice(0, 10);
+                const time = d.toISOString().slice(11, 16);
+                return `<tr><td>${date} ${time}</td><td>${AppUtils.escapeHtml(user)}</td><td>${AppUtils.escapeHtml(n.text)}</td></tr>`;
             }).join('');
-            popup.innerHTML=`
-                <div class="slider-header filter-header">
-                    <h2 class="section-title">Quick Note</h2>
-                    <button class="close-slider-btn" id="closeNoteBtn">×</button>
+            
+            // Create popup with UNIFIED STANDARD layout
+            const popup = document.createElement('div');
+            popup.id = 'quickNoteSlider';
+            popup.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: #111;
+                color: #fff;
+                padding: 20px;
+                max-width: 500px;
+                width: 90%;
+                max-height: 80vh;
+                border-radius: 8px;
+                z-index: 10000;
+                overflow-y: auto;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            `;
+            
+            popup.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 20px; margin-bottom: 10px;">
+                    <span>Quick Note</span>
+                    <button id="closeQuickNote" style="background: transparent; color: #fff; border: none; font-size: 24px; cursor: pointer;">×</button>
                 </div>
-                <div class="slider-content quicknote-container">
-                    <table class="data-table quick-note-table">
-                        <thead><tr><th>Date</th><th>User</th><th>Note</th></tr></thead>
-                        <tbody>${notesHtml}
-                            <tr class="table-row">
-                                <td class="table-cell"></td>
-                                <td class="table-cell">${AppUtils.escapeHtml(user)}</td>
-                                <td class="table-cell note-text-cell"><textarea id="noteEditor" class="quicknote-content quicknote-textarea"></textarea></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <div class="filter-bar" style="margin-top:10px;">
-                        <button class="table-action-btn quicknote-save-btn save-button" id="saveNoteBtn">Save</button>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+                    <thead>
+                        <tr><th style="border-bottom: 1px solid #444; padding: 6px 10px; text-align: left;">Date</th><th style="border-bottom: 1px solid #444; padding: 6px 10px; text-align: left;">User</th><th style="border-bottom: 1px solid #444; padding: 6px 10px; text-align: left;">Note</th></tr>
+                    </thead>
+                    <tbody id="quickNoteList">
+                        ${notesHtml}
+                    </tbody>
+                </table>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <textarea id="quickNoteInput" maxlength="200" 
+                        style="background-color: #222; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 8px; resize: none; max-height: 100px; height: 80px; font-family: inherit;">
+                    </textarea>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span id="charCount" style="font-size: 12px; color: #aaa;">0/200</span>
+                        <button id="saveQuickNote" style="align-self: flex-end; background-color: #27ae60; color: white; border: none; padding: 8px 16px; font-size: 14px; border-radius: 4px; cursor: pointer;">Save</button>
                     </div>
-                </div>`;
-            requestAnimationFrame(()=>{popup.style.display='block';});
-            document.getElementById('saveNoteBtn').onclick=function(){
-                const text=document.getElementById('noteEditor').value.trim();
-                if(text){
-                    if(!SessionManager.notes) SessionManager.notes={};
-                    if(!Array.isArray(SessionManager.notes[key])) SessionManager.notes[key]=[];
-                    const entry={text,timestamp:Date.now()};
-                    SessionManager.notes[key].push(entry);
-                    ['riskerSessionData','sessionData','appData'].forEach(k=>{
-                        let sd=JSON.parse(localStorage.getItem(k)||'{}');
-                        if(!sd.notes) sd.notes={};
-                        if(!Array.isArray(sd.notes[key])) sd.notes[key]=[];
-                        sd.notes[key].push(entry);
-                        localStorage.setItem(k,JSON.stringify(sd));
-                    });
+                </div>
+            `;
+            
+            document.body.appendChild(popup);
+            
+            // Bind functionality
+            const input = document.getElementById('quickNoteInput');
+            const charCount = document.getElementById('charCount');
+            const saveBtn = document.getElementById('saveQuickNote');
+            const closeBtn = document.getElementById('closeQuickNote');
+            const notesList = document.getElementById('quickNoteList');
+            
+            // Character count
+            input.addEventListener('input', function() {
+                if (this.value.length > 200) {
+                    this.value = this.value.slice(0, 200);
                 }
-                popup.style.display='none';
+                charCount.textContent = `${this.value.length}/200`;
+            });
+            
+            // Close functionality
+            function closeQuickNote() {
+                popup.remove();
+            }
+            closeBtn.onclick = closeQuickNote;
+            
+            // Click outside to close
+            popup.addEventListener('click', function(e) {
+                if (e.target === popup) closeQuickNote();
+            });
+            
+            // Save functionality
+            saveBtn.onclick = function() {
+                const text = input.value.trim();
+                if (!text) return;
+                
+                const now = new Date();
+                const timestamp = now.getTime();
+                const dateStr = now.toISOString().slice(0, 10);
+                const timeStr = now.toISOString().slice(11, 16);
+                
+                // Save to session
+                if (!SessionManager.notes) SessionManager.notes = {};
+                if (!Array.isArray(SessionManager.notes[key])) SessionManager.notes[key] = [];
+                SessionManager.notes[key].push({ text, timestamp });
+                
+                // Save to localStorage
+                ['riskerSessionData','sessionData','appData'].forEach(k=>{
+                    let sd = JSON.parse(localStorage.getItem(k)||'{}');
+                    if(!sd.notes) sd.notes = {};
+                    if(!Array.isArray(sd.notes[key])) sd.notes[key] = [];
+                    sd.notes[key].push({ text, timestamp });
+                    localStorage.setItem(k, JSON.stringify(sd));
+                });
+                
+                // Add to visual list
+                const newRow = document.createElement('tr');
+                newRow.innerHTML = `<td>${dateStr} ${timeStr}</td><td>${AppUtils.escapeHtml(user)}</td><td>${AppUtils.escapeHtml(text)}</td>`;
+                notesList.appendChild(newRow);
+                
+                // Update button state
+                const btn = document.querySelector(`.quicknote-btn[data-customer="${index}"]`);
+                if (btn) btn.classList.add('quicknote-has-content');
+                
+                // Clear input
+                input.value = '';
+                charCount.textContent = '0/200';
+                
+                // Feedback
+                alert('Note saved');
+                
+                // Update displays if needed
                 updateRiskmapDisplay(riskmapData);
             };
-            document.getElementById('closeNoteBtn').onclick=function(){popup.style.display='none';};
-            });
         }
 
         const QuickNote = { render: openNoteModal };
@@ -1355,51 +1825,55 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('=== RiskMap DOM Ready ===');
 
-            document.querySelectorAll('.sidebar-btn[data-target]').forEach(function(btn){
-                btn.addEventListener('click', function(){
-                    var target = this.dataset.target;
-                    if(typeof window[target] === 'function'){
-                        window[target]();
-                    }else{
-                        console.warn('Missing target function for:', target);
-                    }
+            try {
+                document.querySelectorAll('.sidebar-btn[data-target]').forEach(function(btn){
+                    btn.addEventListener('click', function(){
+                        var target = this.dataset.target;
+                        if(typeof window[target] === 'function'){
+                            window[target]();
+                        }else{
+                            console.warn('Missing target function for:', target);
+                        }
+                    });
                 });
-            });
-            
-            loadRiskmapData();
-            bindQuickNoteButtons();
-            
-            const fileInput = document.getElementById('fileInput');
-            if (fileInput) {
-                fileInput.addEventListener('change', handleFileUpload, false);
-                console.log('RiskMap: File input listener added');
+                
+                // Daten laden
+                loadRiskmapData();
+                
+                const fileInput = document.getElementById('fileInput');
+                if (fileInput) {
+                    fileInput.addEventListener('change', handleFileUpload, false);
+                    console.log('✅ File input listener added');
+                }
+
+                const sortARRBtn = document.getElementById('sortARR');
+                if (sortARRBtn) {
+                    sortARRBtn.onclick = sortByARR;
+                }
+
+                const sortRiskBtn = document.getElementById('sortRisk');
+                if (sortRiskBtn) {
+                    sortRiskBtn.onclick = sortByRisk;
+                }
+
+                const logSelect = document.getElementById('logLevelSelect');
+                if (logSelect && window.Logger) {
+                    logSelect.value = Logger.getLevel();
+                    logSelect.addEventListener('change', function(){
+                        Logger.saveLevel(this.value);
+                    });
+                }
+
+                setTimeout(updateSortButtons, 500);
+                setTimeout(updateSortButtons, 1000);
+
+                console.log('✅ RiskMap Setup Complete');
+                
+            } catch (error) {
+                console.error('❌ Error in DOM Ready:', error);
             }
-
-            const sortARRBtn = document.getElementById('sortARR');
-            if (sortARRBtn) {
-                sortARRBtn.onclick = sortByARR;
-            }
-
-            const sortRiskBtn = document.getElementById('sortRisk');
-            if (sortRiskBtn) {
-                sortRiskBtn.onclick = sortByRisk;
-            }
-
-
-            const logSelect = document.getElementById('logLevelSelect');
-            if (logSelect && window.Logger) {
-                logSelect.value = Logger.getLevel();
-                logSelect.addEventListener('change', function(){
-                    Logger.saveLevel(this.value);
-                });
-            }
-
-
-            setTimeout(updateSortButtons, 500);
-            setTimeout(updateSortButtons, 1000);
-
-            console.log('=== RiskMap Setup Complete ===');
         });
+
     </script>
 
     <div id="toastContainer" class="toast-container"></div>

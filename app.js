@@ -1408,74 +1408,133 @@ function showToast(message){
 }
 
 function openNoteModal(key, ctx = '') {
-    requestAnimationFrame(() => {
-        let popup = document.getElementById('quickNoteSlider');
-        if (!popup) {
-            popup = document.createElement('div');
-            popup.id = 'quickNoteSlider';
-            popup.className = 'quicknote-popup slider-panel quicknote-panel quicknote-slider-fixed quicknote-overlay';
-            document.body.appendChild(popup);
-        } else {
-            popup.className = 'quicknote-popup slider-panel quicknote-panel quicknote-slider-fixed quicknote-overlay';
-        }
-        const notesRaw = SessionManager.notes && SessionManager.notes[key];
-        const notes = Array.isArray(notesRaw) ? notesRaw : (notesRaw ? [notesRaw] : []);
-        const allRows = [...filteredData, ...aggregatedData, ...erledigtRows];
-        const row = allRows.find(r => DataUtils.generateCustomerKey(r) === key) || {};
-        const user = row['LCSM'] || 'User';
-        const notesHtml = notes.map(n => {
-            const d = new Date(n.timestamp);
-            const date = d.toISOString().slice(0, 10);
-            const time = d.toISOString().slice(11, 16);
-            return `<tr class="table-row"><td class="note-date"><div class="date-wrapper"><span class="date">${date}</span><br /><span class="time">${time}</span></div></td><td class="table-cell">${AppUtils.escapeHtml(user)}</td><td class="table-cell note-text-cell">${AppUtils.escapeHtml(n.text)}</td></tr>`;
-        }).join('');
-        popup.innerHTML = `
-            <div class="slider-header filter-header">
-                <h2 class="section-title">Quick Note</h2>
-                <button class="close-slider-btn" id="closeNoteBtn">×</button>
+    // Remove any existing Quick Note popup
+    const existingPopup = document.getElementById('quickNoteSlider');
+    if (existingPopup) existingPopup.remove();
+    
+    // Get customer data
+    const allRows = [...filteredData, ...aggregatedData, ...erledigtRows];
+    const row = allRows.find(r => DataUtils.generateCustomerKey(r) === key) || {};
+    const user = row['LCSM'] || 'User';
+    
+    // Get existing notes
+    const notesRaw = SessionManager.notes && SessionManager.notes[key];
+    const notes = Array.isArray(notesRaw) ? notesRaw : (notesRaw ? [notesRaw] : []);
+    
+    // Build notes HTML
+    const notesHtml = notes.map(n => {
+        const d = new Date(n.timestamp);
+        const date = d.toISOString().slice(0, 10);
+        const time = d.toISOString().slice(11, 16);
+        return `<tr><td>${date} ${time}</td><td>${AppUtils.escapeHtml(user)}</td><td>${AppUtils.escapeHtml(n.text)}</td></tr>`;
+    }).join('');
+    
+    // Create popup with UNIFIED STANDARD layout
+    const popup = document.createElement('div');
+    popup.id = 'quickNoteSlider';
+    popup.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #111;
+        color: #fff;
+        padding: 20px;
+        max-width: 500px;
+        width: 90%;
+        max-height: 80vh;
+        border-radius: 8px;
+        z-index: 10000;
+        overflow-y: auto;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    `;
+    
+    popup.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 20px; margin-bottom: 10px;">
+            <span>Quick Note</span>
+            <button id="closeQuickNote" style="background: transparent; color: #fff; border: none; font-size: 24px; cursor: pointer;">×</button>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+            <thead>
+                <tr><th style="border-bottom: 1px solid #444; padding: 6px 10px; text-align: left;">Date</th><th style="border-bottom: 1px solid #444; padding: 6px 10px; text-align: left;">User</th><th style="border-bottom: 1px solid #444; padding: 6px 10px; text-align: left;">Note</th></tr>
+            </thead>
+            <tbody id="quickNoteList">
+                ${notesHtml}
+            </tbody>
+        </table>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <textarea id="quickNoteInput" maxlength="200" 
+                style="background-color: #222; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 8px; resize: none; max-height: 100px; height: 80px; font-family: inherit;">
+            </textarea>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span id="charCount" style="font-size: 12px; color: #aaa;">0/200</span>
+                <button id="saveQuickNote" style="align-self: flex-end; background-color: #27ae60; color: white; border: none; padding: 8px 16px; font-size: 14px; border-radius: 4px; cursor: pointer;">Save</button>
             </div>
-            <div class="slider-content quicknote-container">
-                <table class="data-table quick-note-table">
-                    <thead><tr><th>Date</th><th>User</th><th>Note</th></tr></thead>
-                    <tbody>${notesHtml}
-                        <tr class="table-row">
-                            <td class="table-cell"></td>
-                            <td class="table-cell">${AppUtils.escapeHtml(user)}</td>
-                            <td class="table-cell note-text-cell"><textarea id="noteEditor" class="quicknote-content quicknote-textarea"></textarea></td>
-                        </tr>
-                    </tbody>
-                </table>
-                <div class="filter-bar" style="margin-top:10px;">
-                    <button class="table-action-btn quicknote-save-btn save-button" id="saveNoteBtn">Save</button>
-                </div>
-            </div>`;
-        requestAnimationFrame(() => { popup.style.display = 'block'; });
-        const outsideClick = function(e) {
-            if (!popup.contains(e.target)) {
-                popup.style.display = 'none';
-                document.removeEventListener('click', outsideClick);
-            }
-        };
-        document.addEventListener('click', outsideClick);
-
-        document.getElementById('saveNoteBtn').onclick = debounce(function() {
-            const text = document.getElementById('noteEditor').value.trim();
-            if (text) {
-                if (!Array.isArray(SessionManager.notes[key])) SessionManager.notes[key] = [];
-                SessionManager.notes[key].push({ text, timestamp: Date.now() });
-                saveSession();
-                const btn = document.querySelector(`.quicknote-btn[data-customer="${key}"]`);
-                if (btn) btn.classList.add('quicknote-has-content');
-            }
-            popup.style.display = 'none';
-            document.removeEventListener('click', outsideClick);
-            if (ctx !== 'workflow' && typeof updateRiskmapDisplay === 'function') updateRiskmapDisplay();
-        }, 300);
-        document.getElementById('closeNoteBtn').onclick = function() {
-            popup.style.display = 'none';
-            document.removeEventListener('click', outsideClick);
-        };
+        </div>
+    `;
+    
+    document.body.appendChild(popup);
+    
+    // Bind functionality
+    const input = document.getElementById('quickNoteInput');
+    const charCount = document.getElementById('charCount');
+    const saveBtn = document.getElementById('saveQuickNote');
+    const closeBtn = document.getElementById('closeQuickNote');
+    const notesList = document.getElementById('quickNoteList');
+    
+    // Character count
+    input.addEventListener('input', function() {
+        if (this.value.length > 200) {
+            this.value = this.value.slice(0, 200);
+        }
+        charCount.textContent = `${this.value.length}/200`;
     });
+    
+    // Close functionality
+    function closeQuickNote() {
+        popup.remove();
+    }
+    closeBtn.onclick = closeQuickNote;
+    
+    // Click outside to close
+    popup.addEventListener('click', function(e) {
+        if (e.target === popup) closeQuickNote();
+    });
+    
+    // Save functionality
+    saveBtn.onclick = function() {
+        const text = input.value.trim();
+        if (!text) return;
+        
+        const now = new Date();
+        const timestamp = now.getTime();
+        const dateStr = now.toISOString().slice(0, 10);
+        const timeStr = now.toISOString().slice(11, 16);
+        
+        // Save to session
+        if (!Array.isArray(SessionManager.notes[key])) SessionManager.notes[key] = [];
+        SessionManager.notes[key].push({ text, timestamp });
+        saveSession();
+        
+        // Add to visual list
+        const newRow = document.createElement('tr');
+        newRow.innerHTML = `<td>${dateStr} ${timeStr}</td><td>${AppUtils.escapeHtml(user)}</td><td>${AppUtils.escapeHtml(text)}</td>`;
+        notesList.appendChild(newRow);
+        
+        // Update button state
+        const btn = document.querySelector(`.quicknote-btn[data-customer="${key}"]`);
+        if (btn) btn.classList.add('quicknote-has-content');
+        
+        // Clear input
+        input.value = '';
+        charCount.textContent = '0/200';
+        
+        // Feedback
+        alert('Note saved');
+        
+        // Update displays if needed
+        if (ctx !== 'workflow' && typeof updateRiskmapDisplay === 'function') updateRiskmapDisplay();
+    };
 }
 window.openNoteModal = openNoteModal;
 
@@ -1825,7 +1884,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const delay = delays[attempts % delays.length];
             setTimeout(trySetupEventListeners, delay);
         } else {
-            console.error('Failed to set up event listeners after maximum attempts');
+            console.error('Failed toset up event listeners after maximum attempts');
             window.addEventListener('load', function() {
                 console.log('Final attempt: Trying to setup event listeners after window load');
                 setupEventListeners();
@@ -1837,3 +1896,17 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 window.aggregatedData = aggregatedData;
+
+// Unified Quick Note button binding for all views
+function bindQuickNoteButtons() {
+    document.querySelectorAll('.quicknote-btn').forEach(btn => {
+        btn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const customerKey = this.getAttribute('data-customer');
+            if (customerKey) {
+                openNoteModal(customerKey);
+            }
+        };
+    });
+}
