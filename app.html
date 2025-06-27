@@ -5,11 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>No more Risk! - Risk Management Dashboard</title>
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    
+    <script src="./libs/xlsx.full.min.js"></script>
+    <script src="logger.js"></script>
+
     <!-- Lade utils.js ZUERST, dann app.js -->
     <script src="utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="./libs/chart.umd.js"></script>
     <script src="app.js"></script>
 </head>
 <body>
@@ -28,23 +29,25 @@
         <div class="sidebar">
             <nav class="sidebar-nav">
                 <ul>
-                    <li><button class="sidebar-btn active-page" id="startBtn">ShowData</button></li>
-                    <li><button class="sidebar-btn" id="uploadDataBtn">Upload Data</button></li>
-                    <li><button class="sidebar-btn" id="heatmapBtn">📊 RiskMap</button></li>
-                    <li><button class="sidebar-btn" id="archiveBtn">📋 Archive</button></li>
-                    <li><button class="sidebar-btn" id="kpiDashboardBtn">📈 KPI Dashboard</button></li>
+                    <li><button class="sidebar-btn sidebar-btn-layout active" id="startBtn" data-target="goToStart">ShowData</button></li>
+                    <li><button class="sidebar-btn sidebar-btn-layout" id="uploadDataBtn" data-target="triggerUpload">Upload Data</button></li>
+                    <li><button class="sidebar-btn sidebar-btn-layout" id="heatmapBtn" data-target="openHeatmap">RiskMap</button></li>
+                    <li><button class="sidebar-btn sidebar-btn-layout" id="archiveBtn" data-target="showArchive">Archive</button></li>
+                    <li><button class="sidebar-btn sidebar-btn-layout" id="kpiDashboardBtn" data-target="showKpiDashboard">KPI Dashboard</button></li>
+                    <li><button class="sidebar-btn sidebar-btn-layout" id="workflowBtn" data-target="toggleWorkflow">Workflow</button></li>
                 </ul>
             </nav>
             
             <div class="sidebar-footer">
-                <button class="sidebar-btn logout-btn" id="logoutBtn">
+                <button class="sidebar-btn sidebar-btn-layout" id="saveSessionBtn" data-target="saveCurrentSession">Save Session</button>
+                <button class="sidebar-btn sidebar-btn-layout logout-btn footer-btn" id="logoutBtn" data-target="performLogout">
                     Logout & Clear Session
                 </button>
             </div>
         </div>
 
         <!-- Main Content -->
-        <div class="main-content" id="mainContent">
+        <div class="main-content with-footer" id="mainContent">
             <!-- Archive Upload Bar -->
             <div id="archiveUploadBar" class="archive-upload-bar" style="display: none;">
                 <div class="archive-info">
@@ -80,16 +83,33 @@
             </div>
         </div>
 
-        <div id="kpiDashboardContainer" style="display:none;">
-          <!-- Charts and filters will be injected here -->
+        <div id="workflowSidebar" class="sidebar-slider">
+          <div class="slider-header">
+            <h2>WORKFLOW</h2>
+            <button id="closeWorkflowBtn" class="close-slider-btn">×</button>
+          </div>
+          <div class="workflow-content">
+            <h3>Please contact the following Customers soon</h3>
+            <table class="workflow-table"></table>
+          </div>
+        </div>
+
+        <div id="kpiDashboardContainer" class="slider-panel">
+          <div class="slider-header">
+            <h2>KPI DASHBOARD</h2>
+            <button id="closeKpiBtn" class="close-slider-btn">×</button>
+          </div>
+          <div class="slider-content" id="kpiDashboardContent"></div>
         </div>
     </div>
 
     <!-- Footer -->
     <div class="footer-transparent" id="footerTransparent">
         <div class="footer-content-transparent">
-            <a href="https://github.com/Olivetr33/No-More-Risk-" target="_blank" rel="noopener" class="github-link">GitHub</a>
-            <button class="faq-footer-btn" id="faqBtn">❓ FAQ</button>
+            <div class="footer-button-group">
+                <a href="https://github.com/Olivetr33/No-More-Risk-" target="_blank" rel="noopener" class="github-link">GitHub</a>
+                <button class="faq-footer-btn footer-btn" id="faqBtn" data-target="showFaqModal">FAQ</button>
+            </div>
         </div>
     </div>
 
@@ -99,6 +119,9 @@
             <div id="faqPopupInner"></div>
         </div>
     </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+
 
     <!-- Dialog Background -->
     <div id="dialogBg" class="dialog-overlay" style="display: none;">
@@ -226,14 +249,14 @@
         }
 
         /* KORRIGIERT: Aktive Seite - ShowData ist jetzt aktiv */
-        .active-page {
+        .sidebar-btn-layout.active {
             background: rgba(255, 210, 33, 0.2) !important;
             border: 2px solid #ffd221 !important;
             color: #ffd221 !important;
             cursor: default !important;
         }
 
-        .active-page:hover {
+        .sidebar-btn-layout.active:hover {
             transform: translateX(-10px) !important;
         }
 
@@ -639,6 +662,93 @@
             border-color: rgba(255, 255, 255, 0.6);
             transform: translateY(-2px);
         }
+
+        #kpiDashboardContainer {
+            overflow-y: auto;
+        }
+
+        #kpiDashboardContainer .chart-container {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+        }
+        #kpiDashboardContainer canvas {
+            width: 100% !important;
+            height: auto !important;
+        }
+
+        .sidebar-slider {
+            position: fixed;
+            top: 0;
+            right: -50vw;
+            width: 50vw;
+            height: 100vh;
+            background: rgba(10, 10, 10, 0.98);
+            backdrop-filter: blur(25px);
+            overflow-y: auto;
+            z-index: 2000;
+            transition: right 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+            color: #ffffff;
+            padding: 20px;
+            box-shadow: -30px 0 60px rgba(0,0,0,0.8);
+            border-radius: 25px 0 0 25px;
+        }
+        .sidebar-slider.active {
+            right: 0;
+            border-left: 4px solid transparent;
+            border-image: linear-gradient(
+                to bottom,
+                transparent 0%,
+                transparent 15%,
+                rgba(255, 210, 33, 0.3) 20%,
+                rgba(255, 210, 33, 0.8) 40%,
+                #ffd221 50%,
+                rgba(255, 210, 33, 0.8) 60%,
+                rgba(255, 210, 33, 0.3) 80%,
+                transparent 85%,
+                transparent 100%
+            ) 1;
+            box-shadow:
+                -30px 0 60px rgba(0, 0, 0, 0.8),
+                0 0 40px rgba(255, 210, 33, 0.6),
+                inset 0 0 40px rgba(255, 210, 33, 0.15);
+            animation: neonPulse 2s ease-in-out infinite alternate;
+        }
+        .workflow-table { width: 100%; border-collapse: collapse; color: #fff; }
+        .workflow-table th, .workflow-table td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .workflow-table td, .workflow-table th { text-align:center; vertical-align:middle; }
+        .workflow-content {
+            height: calc(100vh - 120px);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        #kpiDashboardContainer .chart-area {
+            height: calc(100vh - 160px);
+            overflow-y: auto;
+        }
+
+        .dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2500;
+        }
+        .dialog-content {
+            background: #23272b;
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 80%;
+            color: #fff;
+        }
+
 
         /* Responsive Design */
         @media (max-width: 768px) {

@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>No more Risk! - RiskMap</title>
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="./libs/xlsx.full.min.js"></script>
+    <script src="logger.js"></script>
     <script src="utils.js"></script>
 </head>
 <body>
@@ -24,22 +25,25 @@
         <div class="sidebar">
             <nav class="sidebar-nav">
                 <ul>
-                    <li><button class="sidebar-btn" onclick="window.goToStart()">ShowData</button></li>
-                    <li><button class="sidebar-btn" onclick="window.triggerUpload()">Upload Data</button></li>
-                    <li><button class="sidebar-btn active-page">📊 RiskMap</button></li>
-                    <li><button class="sidebar-btn" onclick="window.showArchive()">📋 Archive</button></li>
+                    <li><button class="sidebar-btn sidebar-btn-layout" data-target="goToStart">ShowData</button></li>
+                    <li><button class="sidebar-btn sidebar-btn-layout" data-target="triggerUpload">Upload Data</button></li>
+                    <li><button class="sidebar-btn sidebar-btn-layout active" >RiskMap</button></li>
+                    <li><button class="sidebar-btn sidebar-btn-layout" data-target="showArchive">Archive</button></li>
+                    <li><button class="sidebar-btn sidebar-btn-layout" id="kpiDashboardBtn" data-target="showKpiDashboard">KPI Dashboard</button></li>
+                    <li><button class="sidebar-btn sidebar-btn-layout" id="workflowBtn" data-target="toggleWorkflow">Workflow</button></li>
                 </ul>
             </nav>
             
             <div class="sidebar-footer">
-                <button class="sidebar-btn logout-btn" onclick="window.performLogout()">
+                <button class="sidebar-btn sidebar-btn-layout" data-target="saveCurrentSession">Save Session</button>
+                <button class="sidebar-btn sidebar-btn-layout logout-btn footer-btn" data-target="performLogout">
                     Logout & Clear Session
                 </button>
             </div>
         </div>
 
         <!-- Main Content -->
-        <div class="main-content slider-open" id="mainContent">
+        <div class="main-content slider-open with-footer" id="mainContent">
             <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display: none;">
         </div>
 
@@ -63,7 +67,6 @@
                             <span class="sort-text">Total Risk</span>
                             <span class="sort-arrow">↓</span>
                         </button>
-                        <button class="sort-btn" id="radarBtn">Radar</button>
                     </div>
                 </div>
 
@@ -115,7 +118,9 @@
     <!-- Footer -->
     <div class="footer-transparent" id="footerTransparent">
         <div class="footer-content-transparent">
-            <a href="https://github.com/Olivetr33/No-More-Risk-" target="_blank" rel="noopener" class="github-link">GitHub</a>
+            <div class="footer-button-group">
+                <a href="https://github.com/Olivetr33/No-More-Risk-" target="_blank" rel="noopener" class="github-link">GitHub</a>
+            </div>
         </div>
     </div>
 
@@ -232,14 +237,14 @@
             outline-offset: 2px;
         }
 
-        .active-page {
+        .sidebar-btn-layout.active {
             background: rgba(255, 210, 33, 0.2) !important;
             border: 2px solid #ffd221 !important;
             color: #ffd221 !important;
             cursor: default !important;
         }
 
-        .active-page:hover {
+        .sidebar-btn-layout.active:hover {
             transform: translateX(-10px) !important;
         }
 
@@ -632,75 +637,49 @@
             transform: translateY(-2px);
         }
 
-        /* Radar Popup Styles */
-        .popup-bg {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.6);
-            z-index: 4000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .popup-inner {
-            background: #23272b;
-            color: #fff;
-            border-radius: 18px;
-            padding: 20px;
-            width: calc((100vw - 250px) / 2);
-            max-height: 70vh;
-            overflow-y: auto;
-            box-shadow: 0 4px 32px rgba(0,0,0,0.3);
-        }
-
-        .radar-details-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        .radar-details-table th,
-        .radar-details-table td {
-            padding: 8px 10px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            font-size: 13px;
-        }
-        .radar-details-table th {
-            background: rgba(255, 210, 33, 0.15);
-            color: #ffd221;
-            font-weight: bold;
-        }
-        .radar-detail-row { display: none; }
-        .radar-actions button {
-            margin-right: 6px;
-            padding: 4px 10px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        .radar-actions .archive-btn { background: #4CAF50; color: #fff; }
-        .radar-actions .todo-btn { background: #2196F3; color: #fff; }
-        .radar-close {
-            margin-top: 12px;
-            padding: 6px 14px;
-            background: #f44336;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-    </style>
 
     <!-- KORRIGIERTES JavaScript - Mit IDENTISCHER extractNumber() Funktion wie in app.js -->
     <script>
+        const { DataUtils, SessionManager } = window.AppUtils;
+        function saveCurrentSession(){
+            try{
+                const data = localStorage.getItem('riskerSessionData');
+                if(data) localStorage.setItem('riskerSessionData', data);
+                showToast('Session saved successfully.');
+            }catch(e){console.error(e);}
+        }
+        function showToast(msg){
+            const cont = document.getElementById('toastContainer');
+            if(!cont) return;
+            const t = document.createElement('div');
+            t.className='toast';
+            t.textContent=msg;
+            cont.appendChild(t);
+            requestAnimationFrame(()=>t.classList.add('show'));
+            setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300);},2500);
+        }
+
+        function closeAllSliders(){
+            document.querySelectorAll('.slider-panel, .sidebar-slider').forEach(el=>el.classList.remove('active'));
+        }
+
+        function toggleFooter(hide){
+            const footer = document.getElementById('footerTransparent');
+            if(footer){
+                if(hide){
+                    footer.classList.add('hidden');
+                    console.log('Footer hidden');
+                }else{
+                    footer.classList.remove('hidden');
+                    console.log('Footer shown');
+                }
+            }
+        }
         // KORRIGIERT: IDENTISCHE Spalten-Mapping wie in app.js
         const COLUMN_MAPPINGS = {
             'LCSM': ['LCSM', 'lcsm', 'Lcsm', 'LcsM', 'SACHBEARBEITER', 'sachbearbeiter', 'Sachbearbeiter', 'CSM', 'csm', 'Manager', 'manager', 'MANAGER', 'Betreuer', 'betreuer', 'BETREUER'],
-            'Customer Name': ['Customer Name', 'customer name', 'CUSTOMER NAME', 'CustomerName', 'customername', 'CUSTOMERNAME', 'Customer Number', 'customer number', 'CUSTOMER NUMBER', 'CustomerNumber', 'customernumber', 'CUSTOMERNUMBER', 'Kunde', 'kunde', 'KUNDE', 'Kundenname', 'kundenname', 'KUNDENNAME', 'Kundennummer', 'kundennummer', 'KUNDENNUMMER', 'Name', 'name', 'NAME', 'Client', 'client', 'CLIENT'],
+            'Customer Name': ['Customer Name', 'customer name', 'CUSTOMER NAME', 'CustomerName', 'customername', 'CUSTOMERNAME', 'Kunde', 'kunde', 'KUNDE', 'Kundenname', 'kundenname', 'KUNDENNAME', 'Name', 'name', 'NAME', 'Client', 'client', 'CLIENT'],
+            'Customer Number': ['Customer Number', 'customer number', 'CUSTOMER NUMBER', 'CustomerNumber', 'customernumber', 'CUSTOMERNUMBER', 'Customer ID', 'customer id', 'CustomerID', 'CUSTOMERID', 'Kundennummer', 'kundennummer', 'KUNDENNUMMER'],
             'Total Risk': ['Total Risk', 'total risk', 'TOTAL RISK', 'TotalRisk', 'totalrisk', 'TOTALRISK', 'Risk', 'risk', 'RISK', 'Risiko', 'risiko', 'RISIKO', 'Score', 'score', 'SCORE', 'Risk Score', 'risk score', 'RISK SCORE', 'RiskScore', 'riskscore', 'RISKSCORE'],
             'ARR': ['ARR', 'arr', 'Arr', 'Annual Recurring Revenue', 'annual recurring revenue', 'ANNUAL RECURRING REVENUE', 'Revenue', 'revenue', 'REVENUE', 'Umsatz', 'umsatz', 'UMSATZ', 'Vertragswert', 'vertragswert', 'VERTRAGSWERT', 'Value', 'value', 'VALUE', 'Wert', 'wert', 'WERT', 'Amount', 'amount', 'AMOUNT']
         };
@@ -869,11 +848,23 @@
         };
 
         window.triggerUpload = function() {
+            if (isUploadDialogOpen) return;
+            isUploadDialogOpen = true;
+
             console.log('Upload Data function called from RiskMap');
-            const fileInput = document.getElementById('fileInput');
-            if (fileInput) {
-                fileInput.click();
+            const fileInput = AppUtils.FileInputUtils.reset('fileInput');
+            if (!fileInput) {
+                console.warn('❌ File input not reset correctly');
+                isUploadDialogOpen = false;
+                return;
             }
+
+            fileInput.addEventListener('change', handleFileUpload, { once: true });
+            fileInput.value = '';
+            setTimeout(() => {
+                fileInput.click();
+                isUploadDialogOpen = false;
+            }, 100);
         };
 
         window.performLogout = function() {
@@ -901,78 +892,29 @@
 
         // RiskMap State
         let riskmapData = [];
+        function renderRiskMap(data) {
+            riskmapData = data || [];
+            updateRiskmapDisplay(riskmapData);
+            console.log('✅ Risk Map rendered with', riskmapData.length, 'entries');
+        }
         let currentSort = { column: 'Total Risk', direction: 'desc' };
+
+        // Upload state locks
+        let isUploadDialogOpen = false;
+        let uploadInProgress = false;
 
         // Daten-Loading mit flexibler Spaltenerkennung
         function loadRiskmapData() {
             console.log('=== RiskMap Data Loading Started ===');
-            
-            try {
-                const allKeys = ['riskerSessionData', 'sessionData', 'appData'];
-                let sessionData = null;
-                let foundKey = null;
-                
-                for (const key of allKeys) {
-                    try {
-                        const data = localStorage.getItem(key);
-                        if (data && data.length > 10) {
-                            const parsedData = JSON.parse(data);
-                            if (parsedData && (parsedData.aggregatedData || parsedData.filteredData || parsedData.excelData)) {
-                                sessionData = parsedData;
-                                foundKey = key;
-                                console.log(`RiskMap: Found valid session data in key: ${key}`);
-                                break;
-                            }
-                        }
-                    } catch (e) {
-                        console.warn(`RiskMap: Failed to parse key ${key}:`, e);
-                    }
-                }
-                
-                if (!sessionData) {
-                    console.warn('RiskMap: No session data found in any key');
-                    showNoDataMessage();
-                    return;
-                }
-                
-                let sourceData = null;
-                let dataSource = '';
-                
-                if (sessionData.aggregatedData && Array.isArray(sessionData.aggregatedData) && sessionData.aggregatedData.length > 0) {
-                    sourceData = sessionData.aggregatedData;
-                    dataSource = 'aggregatedData';
-                } else if (sessionData.filteredData && Array.isArray(sessionData.filteredData) && sessionData.filteredData.length > 0) {
-                    sourceData = sessionData.filteredData;
-                    dataSource = 'filteredData';
-                } else if (sessionData.excelData && Array.isArray(sessionData.excelData) && sessionData.excelData.length > 0) {
-                    sourceData = sessionData.excelData;
-                    dataSource = 'excelData';
-                } else {
-                    console.warn('RiskMap: No valid data arrays found in session');
-                    showNoDataMessage();
-                    return;
-                }
-                
-                console.log(`RiskMap: Using ${dataSource} with ${sourceData.length} items`);
-                
-                riskmapData = sourceData.filter(customer => {
-                    return !customer.erledigt && !customer.done && !customer.completed && !customer.archived;
-                });
-                
-                console.log(`RiskMap: Filtered data: ${riskmapData.length} active customers`);
-                
-                if (riskmapData.length > 0) {
-                    updateRiskmapDisplay();
-                    console.log('=== RiskMap Data Loading SUCCESS ===');
-                } else {
-                    console.warn('RiskMap: No active customers found after filtering');
-                    showNoDataMessage();
-                }
-                
-            } catch (error) {
-                console.error('=== RiskMap Data Loading ERROR ===', error);
+            const allCustomers = AppUtils.SessionManager.getAllCustomers() || [];
+            console.log('📊 RiskMap source data:', allCustomers);
+            if (!allCustomers.length) {
                 showNoDataMessage();
+                return;
             }
+            const activeCustomers = allCustomers.filter(c => !c.erledigt && !c.done && !c.completed && !c.archived);
+            renderRiskMap(activeCustomers);
+            console.log('=== RiskMap Data Loading SUCCESS ===');
         }
 
         function showNoDataMessage() {
@@ -986,26 +928,29 @@
                     </tr>
                 `;
             }
-            
-            document.getElementById('totalCustomers').textContent = '0';
-            document.getElementById('highRiskCustomers').textContent = '0';
-            document.getElementById('totalARR').textContent = '€0';
+
+            const totalCustomersEl = document.getElementById('totalCustomers');
+            if (totalCustomersEl) totalCustomersEl.textContent = '0';
+            const highRiskCustomersEl = document.getElementById('highRiskCustomers');
+            if (highRiskCustomersEl) highRiskCustomersEl.textContent = '0';
+            const totalARRel = document.getElementById('totalARR');
+            if (totalARRel) totalARRel.textContent = '€0';
         }
 
-        function updateRiskmapDisplay() {
-            console.log('RiskMap: Updating display with', riskmapData.length, 'customers');
-            updateStats();
-            renderRiskmapTable();
+        function updateRiskmapDisplay(data) {
+            console.log('RiskMap: Updating display with', data.length, 'customers');
+            updateStats(data);
+            renderCustomerTable(data);
             updateSortButtons();
         }
 
-        function updateStats() {
-            const totalCustomers = riskmapData.length;
-            const highRiskCustomers = riskmapData.filter(customer => {
+        function updateStats(data) {
+            const totalCustomers = data.length;
+            const highRiskCustomers = data.filter(customer => {
                 const risk = parseFloat(customer['Total Risk'] || customer['total_risk'] || customer['risk'] || 0);
                 return risk > 10;
             }).length;
-            const totalARR = riskmapData.reduce((sum, customer) => {
+            const totalARR = data.reduce((sum, customer) => {
                 const arr = parseFloat(customer['ARR'] || customer['arr'] || 0);
                 return sum + arr;
             }, 0);
@@ -1015,18 +960,19 @@
             document.getElementById('totalARR').textContent = `€${totalARR.toLocaleString()}`;
         }
 
-        function renderRiskmapTable() {
+        function renderCustomerTable(data) {
+            // FIXED: This function now uses explicitly passed data and does not rely on globals.
             const tableBody = document.getElementById('riskmapTableBody');
-            
-            if (riskmapData.length === 0) {
+
+            if (data.length === 0) {
                 showNoDataMessage();
                 return;
             }
 
-            console.log('RiskMap: Rendering table with', riskmapData.length, 'customers');
+            console.log('RiskMap: Rendering table with', data.length, 'customers');
 
             // Sort data
-            const sortedData = [...riskmapData].sort((a, b) => {
+            const sortedData = [...data].sort((a, b) => {
                 let aVal, bVal;
                 
                 if (currentSort.column === 'ARR') {
@@ -1082,8 +1028,8 @@
                 
                 tableHTML += `
                     <tr>
-                        <td>${customerName}</td>
-                        <td>${lcsm}</td>
+                        <td>${AppUtils.escapeHtml(customerName)}</td>
+                        <td>${AppUtils.escapeHtml(lcsm)}</td>
                         <td>€${arr.toLocaleString()}</td>
                         <td>${risk.toFixed(1)}</td>
                         <td>
@@ -1095,10 +1041,18 @@
                             </div>
                         </td>
                         <td>
-                            <button onclick="markAsDoneRiskmap(${index})" style="
-                                padding: 6px 12px; background: #4CAF50; color: white;
-                                border: none; border-radius: 6px; cursor: pointer; font-size: 12px;"
-                                title="Archive this entry">Archive</button>
+                            <button class="table-action-btn" onclick="archiveCustomerRiskmap(${index}, this)" title="Archive this entry">Archive</button>
+                            <button class="table-action-btn" onclick="addToWorkflowRiskmap(${index})" title="Add to Workflow">➕ Add to Workflow</button>
+                            ${(() => {
+                                const key = AppUtils.DataUtils.generateCustomerKey(customer);
+                                const n = SessionManager.notes && SessionManager.notes[key];
+                                let preview = '';
+                                let hasNote = false;
+                                if(Array.isArray(n) && n.length){ preview = n[n.length-1].text.substring(0,50); hasNote = true; }
+                                else if(n && n.text){ preview = n.text.substring(0,50); hasNote = true; }
+                                const cls = hasNote ? ' quicknote-has-content' : '';
+                                return `<button class="table-action-btn note-btn quicknote-btn${cls}" data-customer="${index}" title="${preview}">🗒</button>`;
+                            })()}
                         </td>
                     </tr>
                 `;
@@ -1106,106 +1060,41 @@
             
             tableBody.innerHTML = tableHTML;
             console.log('RiskMap: Table rendered successfully with', sortedData.length, 'rows');
+            bindQuickNoteButtons();
         }
 
         // Archive entry with improved session sync
         function markAsDoneRiskmap(customerIndex) {
             try {
-                console.log('=== RiskMap Archive Started ===');
-                console.log('Customer Index:', customerIndex);
-                
-                if (customerIndex < 0 || customerIndex >= riskmapData.length) {
-                    console.error('Invalid customer index:', customerIndex);
-                    return;
-                }
-                
+                if (customerIndex < 0 || customerIndex >= riskmapData.length) return;
                 const customer = riskmapData[customerIndex];
-                
-                const customerName = customer['Customer Name'] || 
-                                   customer['Kunde'] || 
-                                   customer['Kundenname'] || 
-                                   customer['Customer'] || 
-                                   customer['Name'] || 
-                                   customer['name'] ||
-                                   customer['customer_name'] ||
-                                   customer['client_name'] ||
-                                   customer['company'] ||
-                                   customer['firma'] ||
-                                   `Customer ${customerIndex + 1}`;
-                
-                console.log('RiskMap: Customer to mark as done:', customerName, customer);
-                
-                const customerKey = [
-                    customerName,
-                    customer['LCSM'] || customer['lcsm'] || '',
-                    (customer['ARR'] || customer['arr'] || 0).toFixed(2)
-                ].join('|');
-                
-                console.log('RiskMap: Customer key for matching:', customerKey);
-                
-                const allKeys = ['riskerSessionData', 'sessionData', 'appData'];
-                
-                allKeys.forEach(key => {
-                    try {
-                        let sessionData = JSON.parse(localStorage.getItem(key) || '{}');
-                        
-                        const archivedCustomer = {
-                            ...customer,
-                            erledigt: true,
-                            done: true,
-                            archived: true,
-                            archivedAt: new Date().toISOString(),
-                            archivedFrom: 'RiskMap'
-                        };
-                        
-                        if (!sessionData.erledigtRows) {
-                            sessionData.erledigtRows = [];
-                        }
-                        sessionData.erledigtRows.push(archivedCustomer);
-                        
-                        const dataArrays = ['excelData', 'filteredData', 'aggregatedData', 'originalAggregatedData'];
-                        
-                        dataArrays.forEach(arrayName => {
-                            if (Array.isArray(sessionData[arrayName])) {
-                                sessionData[arrayName].forEach(item => {
-                                    const itemKey = [
-                                        item['Customer Name'] || item['Kunde'] || item['name'] || '',
-                                        item['LCSM'] || item['lcsm'] || '',
-                                        (item['ARR'] || item['arr'] || 0).toFixed(2)
-                                    ].join('|');
-                                    
-                                    if (itemKey === customerKey) {
-                                        item.erledigt = true;
-                                        item.done = true;
-                                        item.archived = true;
-                                        item.archivedAt = new Date().toISOString();
-                                        console.log(`RiskMap: Marked as done in ${arrayName}:`, item);
-                                    }
-                                });
+                const customerKey = AppUtils.DataUtils.generateCustomerKey(customer);
+                const archivedCustomer = { ...customer, erledigt:true, done:true, archived:true, archivedAt:new Date().toISOString(), archivedFrom:'RiskMap' };
+
+                if(!SessionManager.archivedRows) SessionManager.archivedRows = [];
+                if(!SessionManager.archivedRows.find(r => AppUtils.DataUtils.generateCustomerKey(r) === customerKey)) {
+                    SessionManager.archivedRows.push(archivedCustomer);
+                }
+
+                const keys = ['riskerSessionData','sessionData','appData'];
+                keys.forEach(k => {
+                    let sd = JSON.parse(localStorage.getItem(k) || '{}');
+                    if(!sd.archivedRows) sd.archivedRows = [];
+                    if(!sd.erledigtRows) sd.erledigtRows = [];
+                    if(!sd.archivedRows.find(r => AppUtils.DataUtils.generateCustomerKey(r) === customerKey)) sd.archivedRows.push(archivedCustomer);
+                    if(!sd.erledigtRows.find(r => AppUtils.DataUtils.generateCustomerKey(r) === customerKey)) sd.erledigtRows.push(archivedCustomer);
+                    ['excelData','filteredData','aggregatedData','originalAggregatedData'].forEach(arr => {
+                        if(Array.isArray(sd[arr])) sd[arr].forEach(it => {
+                            if(AppUtils.DataUtils.generateCustomerKey(it) === customerKey){
+                                it.erledigt = true; it.done = true; it.archived = true; it.archivedAt = archivedCustomer.archivedAt;
                             }
                         });
-                        
-                        localStorage.setItem(key, JSON.stringify(sessionData));
-                        console.log(`RiskMap: Updated session data in key: ${key}`);
-                        
-                    } catch (e) {
-                        console.warn(`RiskMap: Failed to update key ${key}:`, e);
-                    }
+                    });
+                    localStorage.setItem(k, JSON.stringify(sd));
                 });
-                
-                riskmapData.splice(customerIndex, 1);
-                console.log('RiskMap: Removed from local data, remaining:', riskmapData.length);
-                
-                updateRiskmapDisplay();
-                
-                console.log(`=== RiskMap Archive SUCCESS: ${customerName} moved to Archive ===`);
-                
-                showNotification(`${customerName} erfolgreich ins Archive verschoben!`);
-                
-            } catch (error) {
-                console.error('=== RiskMap Archive ERROR ===', error);
-                alert('Fehler beim Verschieben ins Archive. Bitte versuche es erneut.');
-            }
+
+                riskmapData.splice(customerIndex,1);
+            } catch(e){ console.error('Archive error',e); }
         }
 
         function showNotification(message) {
@@ -1238,6 +1127,115 @@
             }, 3000);
         }
 
+        const archiveCustomerRiskmap = (() => {
+            const handler = function(idx, btn) {
+                if (btn) {
+                    btn.setAttribute('disabled', 'true');
+                    btn.classList.add('archiving');
+                }
+                requestAnimationFrame(() => {
+                    const row = btn ? btn.closest('tr') : null;
+                    if (row) row.remove();
+                    updateStats();
+                    requestIdleCallback(() => {
+                        markAsDoneRiskmap(idx);
+                        showNotification('Customer archived successfully.');
+                    });
+                });
+            };
+            return debounce(handler, 200);
+        })();
+
+        function openNoteModal(index){
+            const customer = riskmapData[index];
+            if(!customer) return;
+            requestAnimationFrame(() => {
+            const key = AppUtils.DataUtils.generateCustomerKey(customer);
+            let popup = document.getElementById('quickNoteSlider');
+            if(!popup){
+                popup = document.createElement('div');
+                popup.id = 'quickNoteSlider';
+                popup.className = 'quicknote-popup slider-panel quicknote-panel quicknote-slider-fixed quicknote-overlay';
+                document.body.appendChild(popup);
+            } else {
+                popup.className = 'quicknote-popup slider-panel quicknote-panel quicknote-slider-fixed quicknote-overlay';
+            }
+            const notesRaw = SessionManager.notes && SessionManager.notes[key];
+            const notes = Array.isArray(notesRaw) ? notesRaw : (notesRaw ? [notesRaw] : []);
+            const user = customer['LCSM'] || 'User';
+            const notesHtml = notes.map(n=>{
+                const d = new Date(n.timestamp);
+                const date = d.toISOString().slice(0,10);
+                const time = d.toISOString().slice(11,16);
+                return `<tr class="table-row"><td class="note-date"><div class="date-wrapper"><span class="date">${date}</span><br /><span class="time">${time}</span></div></td><td class="table-cell">${AppUtils.escapeHtml(user)}</td><td class="table-cell note-text-cell">${AppUtils.escapeHtml(n.text)}</td></tr>`;
+            }).join('');
+            popup.innerHTML=`
+                <div class="slider-header filter-header">
+                    <h2 class="section-title">Quick Note</h2>
+                    <button class="close-slider-btn" id="closeNoteBtn">×</button>
+                </div>
+                <div class="slider-content quicknote-container">
+                    <table class="data-table quick-note-table">
+                        <thead><tr><th>Date</th><th>User</th><th>Note</th></tr></thead>
+                        <tbody>${notesHtml}
+                            <tr class="table-row">
+                                <td class="table-cell"></td>
+                                <td class="table-cell">${AppUtils.escapeHtml(user)}</td>
+                                <td class="table-cell note-text-cell"><textarea id="noteEditor" class="quicknote-content quicknote-textarea"></textarea></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="filter-bar" style="margin-top:10px;">
+                        <button class="table-action-btn quicknote-save-btn save-button" id="saveNoteBtn">Save</button>
+                    </div>
+                </div>`;
+            requestAnimationFrame(()=>{popup.style.display='block';});
+            document.getElementById('saveNoteBtn').onclick=function(){
+                const text=document.getElementById('noteEditor').value.trim();
+                if(text){
+                    if(!SessionManager.notes) SessionManager.notes={};
+                    if(!Array.isArray(SessionManager.notes[key])) SessionManager.notes[key]=[];
+                    const entry={text,timestamp:Date.now()};
+                    SessionManager.notes[key].push(entry);
+                    ['riskerSessionData','sessionData','appData'].forEach(k=>{
+                        let sd=JSON.parse(localStorage.getItem(k)||'{}');
+                        if(!sd.notes) sd.notes={};
+                        if(!Array.isArray(sd.notes[key])) sd.notes[key]=[];
+                        sd.notes[key].push(entry);
+                        localStorage.setItem(k,JSON.stringify(sd));
+                    });
+                }
+                popup.style.display='none';
+                updateRiskmapDisplay(riskmapData);
+            };
+            document.getElementById('closeNoteBtn').onclick=function(){popup.style.display='none';};
+            });
+        }
+
+        const QuickNote = { render: openNoteModal };
+        window.QuickNote = QuickNote;
+
+        function addToWorkflowRiskmap(index){
+            if(index < 0 || index >= riskmapData.length) return;
+            const c = riskmapData[index];
+            const name = c['Customer Name'] || c['Kunde'] || c['Name'] || `Customer ${index+1}`;
+            const lcsm = c['LCSM'] || c['lcsm'] || '';
+            const arr = parseFloat(c['ARR'] || c['arr'] || 0).toFixed(2);
+            const key = [name, lcsm, arr].join('|');
+            const entry = {name, lcsms: lcsm, totalRisk: parseFloat(c['Total Risk'] || c['risk'] || 0), addedAt: new Date().toISOString()};
+            const keys = ['riskerSessionData','sessionData','appData'];
+            keys.forEach(k=>{
+                let sd = JSON.parse(localStorage.getItem(k) || '{}');
+                if(!sd.workflowEntries) sd.workflowEntries = {};
+                sd.workflowEntries[key] = entry;
+                localStorage.setItem(k, JSON.stringify(sd));
+            });
+            riskmapData.splice(index,1);
+            updateRiskmapDisplay(riskmapData);
+            showToast('Added to Workflow.');
+        }
+
+
         function sortByARR() {
             if (currentSort.column === 'ARR') {
                 currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
@@ -1247,7 +1245,7 @@
             }
             
             updateSortButtons();
-            renderRiskmapTable();
+            renderCustomerTable(riskmapData);
         }
 
         function sortByRisk() {
@@ -1259,301 +1257,117 @@
             }
             
             updateSortButtons();
-            renderRiskmapTable();
+            renderCustomerTable(riskmapData);
         }
 
+        let updateSortFrame;
         function updateSortButtons() {
-            const arrBtn = document.getElementById('sortARR');
-            const riskBtn = document.getElementById('sortRisk');
+            if (updateSortFrame) cancelAnimationFrame(updateSortFrame);
+            updateSortFrame = requestAnimationFrame(function(){
+                const arrBtn = document.getElementById('sortARR');
+                const riskBtn = document.getElementById('sortRisk');
 
-            if (!arrBtn || !riskBtn) return;
-            
-            arrBtn.classList.remove('active');
-            riskBtn.classList.remove('active');
-            
-            if (currentSort.column === 'ARR') {
-                arrBtn.classList.add('active');
-                arrBtn.querySelector('.sort-arrow').textContent = currentSort.direction === 'asc' ? '↑' : '↓';
-                riskBtn.querySelector('.sort-arrow').textContent = '↓';
-            } else if (currentSort.column === 'Total Risk') {
-                riskBtn.classList.add('active');
-                riskBtn.querySelector('.sort-arrow').textContent = currentSort.direction === 'asc' ? '↑' : '↓';
-                arrBtn.querySelector('.sort-arrow').textContent = '↓';
-            } else {
-                riskBtn.classList.add('active');
-                arrBtn.querySelector('.sort-arrow').textContent = '↓';
-                riskBtn.querySelector('.sort-arrow').textContent = '↓';
-            }
-        }
+                if (!arrBtn || !riskBtn) return;
 
-        // ================= Radar Feature ==================
-        let radarSortDesc = true;
+                arrBtn.classList.remove('active');
+                riskBtn.classList.remove('active');
 
-        function getRadarData() {
-            const sorted = [...riskmapData].sort((a, b) => {
-                const ar = parseFloat(a['Total Risk'] || a['risk'] || 0);
-                const br = parseFloat(b['Total Risk'] || b['risk'] || 0);
-                return br - ar;
-            });
-
-            const top10 = sorted.slice(0, 10);
-            sorted.slice(10).forEach(c => {
-                const risk = parseFloat(c['Total Risk'] || c['risk'] || 0);
-                if (risk >= 8 && !top10.includes(c)) {
-                    top10.push(c);
+                if (currentSort.column === 'ARR') {
+                    arrBtn.classList.add('active');
+                    arrBtn.querySelector('.sort-arrow').textContent = currentSort.direction === 'asc' ? '↑' : '↓';
+                    riskBtn.querySelector('.sort-arrow').textContent = '↓';
+                } else if (currentSort.column === 'Total Risk') {
+                    riskBtn.classList.add('active');
+                    riskBtn.querySelector('.sort-arrow').textContent = currentSort.direction === 'asc' ? '↑' : '↓';
+                    arrBtn.querySelector('.sort-arrow').textContent = '↓';
+                } else {
+                    riskBtn.classList.add('active');
+                    arrBtn.querySelector('.sort-arrow').textContent = '↓';
+                    riskBtn.querySelector('.sort-arrow').textContent = '↓';
                 }
             });
-            return top10;
         }
 
-        function normalizeKey(key) {
-            return key.toLowerCase().replace(/\s+/g, '');
-        }
-
-        function getField(row, names) {
-            const keys = Object.keys(row);
-            for (const k of keys) {
-                const norm = normalizeKey(k);
-                for (const n of names) {
-                    if (norm === normalizeKey(n)) {
-                        return row[k];
-                    }
-                }
-            }
-            return null;
-        }
-
-        function generateRadarDetail(row) {
-            const name = getField(row, ['Customer Name', 'Kunde', 'Name']);
-            const number = getField(row, ['Customer Number', 'Customer ID', 'Kundennummer']);
-            const lcsm = getField(row, ['LCSM', 'CSM', 'Manager']);
-            const arrVal = getField(row, ['ARR', 'Revenue', 'Umsatz']);
-            const totalRisk = parseFloat(getField(row, ['Total Risk', 'Risk']) || 0);
-            const lastContact = getField(row, ['Last Contact']);
-            const lastSuccess = getField(row, ['Last Success Check']);
-            const renewal = getField(row, ['Contract Renewal Date']);
-
-            const riskColor = totalRisk >= 11 ? '#F44336' : (totalRisk >= 6 ? '#FF9800' : '#4CAF50');
-            const barWidth = Math.min(totalRisk, 12) / 12 * 100;
-            let html = `<div class="risk-bar-container" style="margin-bottom:6px;">
-                            <strong>Total Risk: ${totalRisk.toFixed(1)}</strong>
-                            <div class="risk-bar-bg" style="width:80px;">
-                                <div class="risk-bar-fill" style="width:${barWidth}%; background:${riskColor};"></div>
-                            </div>
-                        </div>`;
-            html += '<table class="radar-details-table"><tbody>';
-            if (name !== null) html += `<tr><td>Customer Name</td><td>${name}</td></tr>`;
-            if (number !== null) html += `<tr><td>Customer Number</td><td>${number}</td></tr>`;
-            if (lcsm !== null) html += `<tr><td>LCSM</td><td>${lcsm}</td></tr>`;
-            if (arrVal !== null) html += `<tr><td>ARR</td><td>€${parseFloat(arrVal).toLocaleString()}</td></tr>`;
-            if (!isNaN(totalRisk)) html += `<tr><td>Total Risk</td><td>${totalRisk.toFixed(1)}</td></tr>`;
-            if (lastContact) html += `<tr><td>Last Contact</td><td>${lastContact}</td></tr>`;
-            if (lastSuccess) html += `<tr><td>Last Success Check</td><td>${lastSuccess}</td></tr>`;
-            if (renewal) html += `<tr><td>Contract Renewal Date</td><td>${renewal}</td></tr>`;
-            html += '</tbody></table>';
-
-            const recs = [];
-            if (renewal) {
-                const d = new Date(renewal);
-                if (!isNaN(d) && (d - new Date()) / 86400000 <= 90 && (d - new Date()) >= 0) {
-                    recs.push('Please Contact Customer due to Business Check Iteration');
-                }
-            }
-            if (lastSuccess) {
-                const d = new Date(lastSuccess);
-                if (!isNaN(d) && (Date.now() - d.getTime()) / 86400000 > 30) {
-                    recs.push('Please Check Customer Product Usage in CRM');
-                }
-            }
-            if (recs.length > 0) {
-                const recText = recs.join('\n');
-                html += `<div class="radar-recs"><ul>` +
-                    recs.map(r => `<li>${r}</li>`).join('') +
-                    `</ul><button onclick="navigator.clipboard.writeText(this.dataset.text)" data-text="${recText.replace(/"/g, '&quot;')}">Copy</button></div>`;
-            }
-            return html;
-        }
-
-        function renderRadarTable() {
-            let data = getRadarData();
-            data.sort((a, b) => {
-                const ar = parseFloat(a['Total Risk'] || a['risk'] || 0);
-                const br = parseFloat(b['Total Risk'] || b['risk'] || 0);
-                return radarSortDesc ? br - ar : ar - br;
-            });
-
-            let html = '<table class="radar-details-table"><thead><tr>' +
-                '<th>Customer Name</th><th>LCSM</th><th>ARR</th>' +
-                '<th id="radarSort">Total Risk</th><th>Actions</th></tr></thead><tbody>';
-
-            data.forEach((row, i) => {
-                const name = getField(row, ['Customer Name', 'Kunde', 'Name']) || `Customer ${i+1}`;
-                const lcsm = getField(row, ['LCSM', 'CSM', 'Manager']) || 'N/A';
-                const arrVal = parseFloat(getField(row, ['ARR', 'Revenue', 'Umsatz']) || 0);
-                const risk = parseFloat(getField(row, ['Total Risk', 'Risk']) || 0);
-                const riskColor = risk >= 11 ? '#F44336' : (risk >= 6 ? '#FF9800' : '#4CAF50');
-
-                html += `<tr>` +
-                    `<td>${name}</td>` +
-                    `<td>${lcsm}</td>` +
-                    `<td>€${arrVal.toLocaleString()}</td>` +
-                    `<td>${risk.toFixed(1)}</td>` +
-                    `<td class="radar-actions">` +
-                        `<button class="archive-btn" onclick="markAsDoneRiskmap(${riskmapData.indexOf(row)})" title="Archive this entry">Archive</button>` +
-                        `<button class="todo-btn" onclick="toggleRadarDetail(${i})" title="Show details">Get To-Do</button>` +
-                    `</td>` +
-                `</tr>`;
-
-                html += `<tr class="radar-detail-row"><td colspan="5">${generateRadarDetail(row)}</td></tr>`;
-            });
-
-            html += '</tbody></table>';
-            html += '<button class="radar-close" onclick="hideRadarPopup()">Close</button>';
-
-            const inner = document.querySelector('#radarPopup .popup-inner');
-            if (inner) inner.innerHTML = html;
-
-            const sortHeader = document.getElementById('radarSort');
-            if (sortHeader) {
-                sortHeader.onclick = function() {
-                    radarSortDesc = !radarSortDesc;
-                    renderRadarTable();
-                };
-            }
-        }
-
-        function toggleRadarDetail(index) {
-            const rows = document.querySelectorAll('#radarPopup .radar-detail-row');
-            const row = rows[index];
-            if (row) {
-                row.style.display = row.style.display === 'table-row' ? 'none' : 'table-row';
-            }
-        }
-
-        function showRadarPopup() {
-            renderRadarTable();
-            const popup = document.getElementById('radarPopup');
-            if (popup) popup.style.display = 'flex';
-            document.addEventListener('keydown', radarKeyHandler);
-        }
-
-        function hideRadarPopup() {
-            const popup = document.getElementById('radarPopup');
-            if (popup) popup.style.display = 'none';
-            document.removeEventListener('keydown', radarKeyHandler);
-        }
-
-        function radarKeyHandler(e) {
-            if (e.key === 'Escape') hideRadarPopup();
-        }
         
         // KORRIGIERT: File Upload mit IDENTISCHER Zahlenextraktion wie in app.js
         function handleFileUpload(e) {
+            if (uploadInProgress) return;
+            uploadInProgress = true;
+
             const file = e.target.files[0];
-            if (!file) return;
+            if (!file) { uploadInProgress = false; return; }
 
-            console.log('=== RiskMap File Upload Started ===');
+            console.debug('📁 File selected:', file.name, file.size);
 
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                try {
-                    const data = new Uint8Array(event.target.result);
-                    
-                    const workbook = XLSX.read(data, { 
-                        type: 'array',
-                        cellText: false,
-                        cellNF: false,
-                        cellDates: false,
-                        raw: true
-                    });
-                    
-                    const sheet = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[sheet];
-                    
-                    const json = XLSX.utils.sheet_to_json(worksheet, { 
-                        header: 1,
-                        raw: true,
-                        defval: null
-                    });
+            AppUtils.handleFileUpload(file, function(rawData, headers) {
+                console.log('=== RiskMap File Upload Started ===');
 
-                    const headers = json[0].filter(header => header && header.toString().trim() !== '');
-                    console.log('RiskMap: Original headers found:', headers);
-                    
-                    let rawData = json.slice(1).map((row, rowIndex) => {
-                        let obj = {};
-                        headers.forEach((header, i) => {
-                            if (header && header.trim()) {
-                                obj[header] = row[i];
-                            }
-                        });
-                        return obj;
-                    }).filter(row => {
-                        return Object.values(row).some(value => 
-                            value !== undefined && 
-                            value !== null && 
-                            value !== '' && 
-                            value.toString().trim() !== ''
-                        );
-                    });
+                console.log(`RiskMap: Raw data extracted: ${rawData.length} rows`);
 
-                    console.log(`RiskMap: Raw data extracted: ${rawData.length} rows`);
-                    
-                    const extractedData = extractCustomerDataRiskMap(rawData, headers);
-                    console.log(`RiskMap: Extracted data: ${extractedData.length} customers`);
-                    
-                    if (extractedData.length > 0) {
-                        console.log('RiskMap: Sample extracted customer:', extractedData[0]);
-                        console.log('RiskMap: ARR values in first 5 customers:', extractedData.slice(0, 5).map(c => ({
-                            name: c['Customer Name'],
-                            arr: c.ARR,
-                            risk: c['Total Risk']
-                        })));
-                    }
-                    
-                    const sessionData = {
-                        excelData: rawData,
-                        filteredData: extractedData,
-                        aggregatedData: extractedData,
-                        originalAggregatedData: [...extractedData],
-                        selectedLCSM: null,
-                        erledigtRows: [],
-                        headers: headers,
-                        currentSort: { column: '', direction: 'desc' },
-                        archiveMode: false,
-                        timestamp: Date.now()
-                    };
-                    
-                    const allKeys = ['riskerSessionData', 'sessionData', 'appData'];
-                    for (const key of allKeys) {
-                        localStorage.setItem(key, JSON.stringify(sessionData));
-                        console.log(`RiskMap: Session data saved to key: ${key}`);
-                    }
-                    
-                    riskmapData = extractedData.filter(customer => !customer.erledigt);
-                    console.log('RiskMap: Updated local data:', riskmapData.length, 'customers');
-                    
-                    updateRiskmapDisplay();
-                    
-                    console.log('=== RiskMap File Upload SUCCESS ===');
-                    showNotification(`Datei erfolgreich hochgeladen: ${extractedData.length} Kunden mit korrekten ARR-Werten verarbeitet!`);
-                    
-                } catch (error) {
-                    console.error('=== RiskMap File Upload ERROR ===', error);
-                    alert(`Dateiverarbeitung fehlgeschlagen: ${error.message}`);
+                const extractedData = extractCustomerDataRiskMap(rawData, headers);
+                console.log(`RiskMap: Extracted data: ${extractedData.length} customers`);
+
+                if (extractedData.length > 0) {
+                    console.log('RiskMap: Sample extracted customer:', extractedData[0]);
+                    console.log('RiskMap: ARR values in first 5 customers:', extractedData.slice(0, 5).map(c => ({
+                        name: c['Customer Name'],
+                        arr: c.ARR,
+                        risk: c['Total Risk']
+                    })));
                 }
-            };
 
-            reader.readAsArrayBuffer(file);
+                const sessionData = {
+                    excelData: rawData,
+                    filteredData: extractedData,
+                    aggregatedData: extractedData,
+                    originalAggregatedData: [...extractedData],
+                    selectedLCSM: null,
+                    erledigtRows: [],
+                    headers: headers,
+                    currentSort: { column: '', direction: 'desc' },
+                    archiveMode: false,
+                    timestamp: Date.now()
+                };
+
+                const allKeys = ['riskerSessionData', 'sessionData', 'appData'];
+                for (const key of allKeys) {
+                    localStorage.setItem(key, JSON.stringify(sessionData));
+                    console.log(`RiskMap: Session data saved to key: ${key}`);
+                }
+
+                const active = extractedData.filter(customer => !customer.erledigt);
+                console.log('RiskMap: Updated local data:', active.length, 'customers');
+                // FIXED: Customer data is parsed and passed directly to the rendering function.
+                renderRiskMap(active);
+
+                console.log('=== RiskMap File Upload SUCCESS ===');
+                showNotification(`Datei erfolgreich hochgeladen: ${extractedData.length} Kunden mit korrekten ARR-Werten verarbeitet!`);
+                uploadInProgress = false;
+
+            }, function(error){
+                console.error('❌ XLSX parsing failed:', error);
+                alert(`Dateiverarbeitung fehlgeschlagen: ${error.message}`);
+                uploadInProgress = false;
+            });
         }
 
         // DOM Ready
         document.addEventListener('DOMContentLoaded', function() {
             console.log('=== RiskMap DOM Ready ===');
+
+            document.querySelectorAll('.sidebar-btn[data-target]').forEach(function(btn){
+                btn.addEventListener('click', function(){
+                    var target = this.dataset.target;
+                    if(typeof window[target] === 'function'){
+                        window[target]();
+                    }else{
+                        console.warn('Missing target function for:', target);
+                    }
+                });
+            });
             
             loadRiskmapData();
-            setTimeout(loadRiskmapData, 500);
-            setTimeout(loadRiskmapData, 1000);
-            setTimeout(loadRiskmapData, 2000);
+            bindQuickNoteButtons();
             
             const fileInput = document.getElementById('fileInput');
             if (fileInput) {
@@ -1571,17 +1385,15 @@
                 sortRiskBtn.onclick = sortByRisk;
             }
 
-            const radarBtn = document.getElementById('radarBtn');
-            if (radarBtn) {
-                radarBtn.onclick = showRadarPopup;
-            }
 
-            const radarPopup = document.getElementById('radarPopup');
-            if (radarPopup) {
-                radarPopup.addEventListener('click', function(e) {
-                    if (e.target === this) hideRadarPopup();
+            const logSelect = document.getElementById('logLevelSelect');
+            if (logSelect && window.Logger) {
+                logSelect.value = Logger.getLevel();
+                logSelect.addEventListener('change', function(){
+                    Logger.saveLevel(this.value);
                 });
             }
+
 
             setTimeout(updateSortButtons, 500);
             setTimeout(updateSortButtons, 1000);
@@ -1589,8 +1401,8 @@
             console.log('=== RiskMap Setup Complete ===');
         });
     </script>
-    <div id="radarPopup" class="popup-bg" style="display:none;">
-      <div class="popup-inner riskmap-popup-inner"></div>
-    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+
 </body>
 </html>

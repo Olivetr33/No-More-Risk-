@@ -17,12 +17,28 @@ let sliderMode = 'archive';
 let filteredSliderData = [];
 let currentSliderSort = { column: 'Total Risk', direction: 'desc' };
 
+// Ensure notes object exists on startup
+SessionManager.notes = SessionManager.notes || {};
+
+function closeAllSliders(){
+    document.querySelectorAll('.slider-panel, .sidebar-slider').forEach(el=>el.classList.remove('active'));
+    const main = document.getElementById('mainContent');
+    if(main) main.classList.remove('slider-open');
+    sliderOpen = false;
+    toggleFooter(false);
+}
+
+// State locks for upload process
+let isUploadDialogOpen = false;
+let uploadInProgress = false;
+
 const displayColumns = ["ARR", "Customer Name", "LCSM", "Total Risk", "Actions"];
 
 // KORRIGIERT: IDENTISCHE Spalten-Mapping in allen Dateien
 const COLUMN_MAPPINGS = {
     'LCSM': ['LCSM', 'lcsm', 'Lcsm', 'LcsM', 'SACHBEARBEITER', 'sachbearbeiter', 'Sachbearbeiter', 'CSM', 'csm', 'Manager', 'manager', 'MANAGER', 'Betreuer', 'betreuer', 'BETREUER'],
-    'Customer Name': ['Customer Name', 'customer name', 'CUSTOMER NAME', 'CustomerName', 'customername', 'CUSTOMERNAME', 'Customer Number', 'customer number', 'CUSTOMER NUMBER', 'CustomerNumber', 'customernumber', 'CUSTOMERNUMBER', 'Kunde', 'kunde', 'KUNDE', 'Kundenname', 'kundenname', 'KUNDENNAME', 'Kundennummer', 'kundennummer', 'KUNDENNUMMER', 'Name', 'name', 'NAME', 'Client', 'client', 'CLIENT'],
+    'Customer Name': ['Customer Name', 'customer name', 'CUSTOMER NAME', 'CustomerName', 'customername', 'CUSTOMERNAME', 'Kunde', 'kunde', 'KUNDE', 'Kundenname', 'kundenname', 'KUNDENNAME', 'Name', 'name', 'NAME', 'Client', 'client', 'CLIENT'],
+    'Customer Number': ['Customer Number', 'customer number', 'CUSTOMER NUMBER', 'CustomerNumber', 'customernumber', 'CUSTOMERNUMBER', 'Customer ID', 'customer id', 'CustomerID', 'CUSTOMERID', 'Kundennummer', 'kundennummer', 'KUNDENNUMMER'],
     'Total Risk': ['Total Risk', 'total risk', 'TOTAL RISK', 'TotalRisk', 'totalrisk', 'TOTALRISK', 'Risk', 'risk', 'RISK', 'Risiko', 'risiko', 'RISIKO', 'Score', 'score', 'SCORE', 'Risk Score', 'risk score', 'RISK SCORE', 'RiskScore', 'riskscore', 'RISKSCORE'],
     'ARR': ['ARR', 'arr', 'Arr', 'Annual Recurring Revenue', 'annual recurring revenue', 'ANNUAL RECURRING REVENUE', 'Revenue', 'revenue', 'REVENUE', 'Umsatz', 'umsatz', 'UMSATZ', 'Vertragswert', 'vertragswert', 'VERTRAGSWERT', 'Value', 'value', 'VALUE', 'Wert', 'wert', 'WERT', 'Amount', 'amount', 'AMOUNT']
 };
@@ -137,6 +153,7 @@ function extractCustomerData(rawData, headers) {
     
     const lcsmColumn = findColumnName(headers, 'LCSM');
     const customerColumn = findColumnName(headers, 'Customer Name');
+    const numberColumn = findColumnName(headers, 'Customer Number');
     const riskColumn = findColumnName(headers, 'Total Risk');
     const arrColumn = findColumnName(headers, 'ARR');
     
@@ -144,36 +161,62 @@ function extractCustomerData(rawData, headers) {
         LCSM: lcsmColumn,
         'Customer Name': customerColumn,
         'Total Risk': riskColumn,
-        'ARR': arrColumn
+        'ARR': arrColumn,
+        'Customer Number': numberColumn
     });
-    
-    return rawData.map((row, index) => {
-        const customerName = customerColumn ? (row[customerColumn] || `Customer ${index + 1}`) : `Customer ${index + 1}`;
-        const lcsm = lcsmColumn ? (row[lcsmColumn] || 'N/A') : 'N/A';
-        
-        const totalRisk = riskColumn ? extractNumber(row[riskColumn]) : 0;
+
+    const grouped = {};
+
+    rawData.forEach((row, index) => {
+        const key = numberColumn ? String(row[numberColumn]).trim().toLowerCase() : `row_${index}`;
         const arr = arrColumn ? extractNumber(row[arrColumn]) : 0;
-        
-        const extractedData = {
-            'Customer Name': customerName,
-            'LCSM': lcsm,
-            'Total Risk': totalRisk,
-            'ARR': arr,
-            ...row
-        };
-        
-        console.log(`APP: Extracted customer ${index + 1}:`, {
-            name: customerName,
+        const risk = riskColumn ? extractNumber(row[riskColumn]) : 0;
+        const name = customerColumn ? row[customerColumn] : '';
+        const lcsm = lcsmColumn ? row[lcsmColumn] : '';
+        const numberValue = numberColumn ? row[numberColumn] : '';
+
+        if (!grouped[key]) {
+            grouped[key] = {
+                ...row,
+                'Customer Name': (name && String(name).trim()) || (numberValue && String(numberValue).trim()) || '',
+                'Customer Number': numberValue,
+                'LCSM': lcsm || 'N/A',
+                'Total Risk': risk,
+                'ARR': arr
+            };
+        } else {
+            if (risk > grouped[key]['Total Risk']) {
+                grouped[key]['Total Risk'] = risk;
+            }
+            grouped[key]['ARR'] += arr;
+
+            if (name && (!grouped[key]['Customer Name'] || grouped[key]['Customer Name'] === String(grouped[key]['Customer Number']).trim())) {
+                grouped[key]['Customer Name'] = String(name).trim();
+            }
+            if (lcsm && (!grouped[key]['LCSM'] || grouped[key]['LCSM'] === 'N/A')) {
+                grouped[key]['LCSM'] = lcsm;
+            }
+        }
+
+        console.log(`APP: Processed customer ${index + 1}:`, {
+            name: name,
             lcsm: lcsm,
-            risk: totalRisk,
+            risk: risk,
             arr: arr,
-            originalARR: row[arrColumn],
-            originalRisk: row[riskColumn]
+            key: key
         });
-        
-        return extractedData;
     });
+
+    const result = Object.values(grouped);
+    result.forEach(entry => {
+        if (!entry['Customer Name'] || !String(entry['Customer Name']).trim()) {
+            entry['Customer Name'] = entry['Customer Number'] ? String(entry['Customer Number']).trim() : '';
+        }
+    });
+    return result;
 }
+
+window.extractCustomerData = extractCustomerData;
 
 function saveSession() {
     const sessionData = {
@@ -187,6 +230,9 @@ function saveSession() {
         currentSort: currentSort,
         archiveMode: archiveMode,
         lastSaveTime: AutoSave.lastSaveTime,
+        riskHistory: SessionManager.riskHistory,
+        workflowEntries: SessionManager.workflowEntries,
+        notes: SessionManager.notes,
         timestamp: Date.now()
     };
     
@@ -234,6 +280,9 @@ function restoreSession() {
         headers = sessionData.headers || [];
         currentSort = sessionData.currentSort || { column: '', direction: 'desc' };
         archiveMode = sessionData.archiveMode || false;
+        SessionManager.riskHistory = sessionData.riskHistory || {};
+        SessionManager.workflowEntries = sessionData.workflowEntries || {};
+        SessionManager.notes = sessionData.notes || {};
         
         AutoSave.lastSaveTime = sessionData.lastSaveTime;
         
@@ -282,20 +331,7 @@ window.goToStart = function() {
         return;
     }
     
-    if (sliderOpen) {
-        closeSlider();
-    }
-
-    const kpiContainer = document.getElementById('kpiDashboardContainer');
-    if (kpiContainer) kpiContainer.style.display = 'none';
-
-    archiveMode = false;
-    const archiveBar = document.getElementById('archiveUploadBar');
-    if (archiveBar) {
-        archiveBar.style.display = 'none';
-    }
-    renderTable(DataUtils.getActiveCustomers(filteredData));
-    updateTableVisibility();
+    switchToView('table');
     saveSession();
     console.log('ShowData function executed');
 };
@@ -310,15 +346,7 @@ window.showArchive = function() {
         return;
     }
     
-    if (sliderOpen) {
-        closeSlider();
-    }
-
-    const kpiContainer = document.getElementById('kpiDashboardContainer');
-    if (kpiContainer) kpiContainer.style.display = 'none';
-
-    sliderMode = 'archive';
-    openSlider();
+    switchToView('archive');
     console.log('Archive function executed');
 };
 
@@ -326,7 +354,7 @@ window.openHeatmap = function() {
     console.log('RiskMap toggle function called - checking state');
 
     const kpiContainer = document.getElementById('kpiDashboardContainer');
-    if (kpiContainer) kpiContainer.style.display = 'none';
+    if (kpiContainer) kpiContainer.classList.remove('active');
     
     const currentUrl = window.location.href;
     
@@ -345,29 +373,50 @@ window.openHeatmap = function() {
 };
 
 window.triggerUpload = function() {
+    if (isUploadDialogOpen) return;
+    isUploadDialogOpen = true;
+
     console.log('Upload Data function called from:', window.location.href);
-    
+
     const currentUrl = window.location.href;
-    
+
     if (currentUrl.includes('riskmap.html')) {
         const fileInput = document.getElementById('fileInput');
         if (fileInput) {
-            fileInput.click();
+            fileInput.addEventListener('change', onFileInputChange, { once: true });
+            fileInput.value = '';
+            setTimeout(() => {
+                fileInput.click();
+                isUploadDialogOpen = false;
+            }, 100);
         } else {
             console.error('File input not found in RiskMap');
+            isUploadDialogOpen = false;
         }
         return;
     }
-    
+
     const newFileInput = FileInputUtils.reset('fileInput');
-    if (newFileInput) {
-        newFileInput.addEventListener('change', handleFile, false);
-        newFileInput.value = "";
-        newFileInput.click();
+    if (!newFileInput) {
+        console.warn('❌ File input not reset correctly');
+        isUploadDialogOpen = false;
+        return;
     }
+
+    newFileInput.addEventListener('change', onFileInputChange, { once: true });
+    newFileInput.value = '';
+    setTimeout(() => {
+        newFileInput.click();
+        isUploadDialogOpen = false;
+    }, 100);
 };
 
 window.performLogout = function() {
+    if (!confirm('Clear all data?')) {
+        console.log('Logout cancelled by user');
+        return;
+    }
+
     console.log('=== VOLLSTÄNDIGER Logout & Session Clear gestartet ===');
     
     try {
@@ -475,6 +524,7 @@ window.performLogout = function() {
 };
 
 function openSlider() {
+    closeAllSliders();
     const sliderPanel = document.getElementById('sliderPanel');
     const mainContent = document.getElementById('mainContent');
     const sliderTitle = document.getElementById('sliderTitle');
@@ -623,15 +673,25 @@ function renderSliderTable() {
             riskBarWidth = '100%';
         }
         
-        const actionButton = `<button onclick="removeFromArchiveSlider(${index})" style="
-            padding: 6px 12px; background: #f44336; color: white;
-            border: none; border-radius: 6px; cursor: pointer; font-size: 12px;
-        ">Remove</button>`;
+        const doneTag = customer.tag === 'Done' ? `<span class="done-tag" onclick="removeFromArchiveSlider(${index})">Done</span>` : '';
+        const notes = SessionManager.notes && SessionManager.notes[DataUtils.generateCustomerKey(customer)];
+        let preview = '';
+        let hasNote = false;
+        if(Array.isArray(notes) && notes.length){
+            preview = notes[notes.length-1].text.substring(0,50);
+            hasNote = true;
+        }else if(notes && notes.text){
+            preview = notes.text.substring(0,50);
+            hasNote = true;
+        }
+        const noteClass = hasNote ? ' quicknote-has-content' : '';
+        const actionButton = `<button class="table-action-btn remove-btn" onclick="removeFromArchiveSlider(${index})">Remove</button>`;
+        const noteButton = `<button class="table-action-btn note-btn${noteClass}" onclick="openNoteModal('${DataUtils.generateCustomerKey(customer)}')" title="${preview}">🗒</button>`;
         
         tableHTML += `
             <tr>
-                <td>${customerName}</td>
-                <td>${lcsm}</td>
+                <td>${escapeHtml(customerName)}</td>
+                <td>${escapeHtml(lcsm)}</td>
                 <td>€${arr.toLocaleString()}</td>
                 <td>${risk.toFixed(1)}</td>
                 <td>
@@ -642,7 +702,7 @@ function renderSliderTable() {
                         <span class="risk-badge" style="background: ${riskColor}; color: #000;">${riskBadge}</span>
                     </div>
                 </td>
-                <td>${actionButton}</td>
+                <td>${doneTag}${actionButton}${noteButton}</td>
             </tr>
         `;
     });
@@ -676,11 +736,15 @@ window.removeFromArchiveSlider = function(index) {
                 aggregatedData[aggregatedIndex].archived = false;
                 console.log(`Customer ${customerName} marked as active again in aggregatedData`);
             }
-            
+
+            unmarkWorkflow(removedRow);
+
             updateSliderData();
             renderTable(DataUtils.getActiveCustomers(filteredData));
             saveSession();
-            
+
+            showToast('Removed from Archive.');
+
             DebugLogger.add('info', `Customer removed from archive: ${customerName}`);
         }
     } catch (error) {
@@ -702,109 +766,129 @@ window.sortSlider = function(column) {
 };
 
 // KORRIGIERT: File Upload mit RICHTIGEN XLSX-Optionen - DAS IST DER ECHTE FIX!
-function handleFile(e) {
+function onFileInputChange(e) {
+    if (uploadInProgress) return;
+    uploadInProgress = true;
+
     const file = e.target.files[0];
-    if (!file) return;
-
+    if (!file) { uploadInProgress = false; return; }
     const reader = new FileReader();
-    reader.onload = function(event) {
-        try {
-            console.log('=== APP: File Upload Started ===');
-            
-            const data = new Uint8Array(event.target.result);
-            
-            // KORRIGIERT: Einfache XLSX-Optionen - HIER WAR DER FEHLER!
-            const workbook = XLSX.read(data, { 
-                type: 'array'
-                // ALLE anderen Optionen ENTFERNT!
-            });
-            
-            const sheet = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[sheet];
-            
-            // KORRIGIERT: Bessere JSON-Optionen - HIER WAR DER FEHLER!
-            const json = XLSX.utils.sheet_to_json(worksheet, { 
+    reader.onload = handleFile;
+    reader.onerror = err => {
+        console.error('File read error:', err);
+        alert('Failed to read file: ' + err.message);
+        uploadInProgress = false;
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+function handleFile(event) {
+    try {
+        console.log('=== APP: File Upload Started ===');
+
+        if (!event.target.result && event.target.files) {
+            const file = event.target.files[0];
+            if (!file) { uploadInProgress = false; return; }
+            console.warn('handleFile called with file input event, using FileReader');
+            const reader = new FileReader();
+            reader.onload = handleFile;
+            reader.onerror = err => {
+                console.error('File read error:', err);
+                alert('Failed to read file: ' + err.message);
+            };
+            reader.readAsArrayBuffer(file);
+            return;
+        }
+
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        let chosenWorksheet = null;
+        let json = null;
+        for (const sheetName of workbook.SheetNames) {
+            const tempSheet = workbook.Sheets[sheetName];
+            const tempJson = XLSX.utils.sheet_to_json(tempSheet, {
                 header: 1,
-                raw: false,           // <-- ÄNDERUNG: false statt true
-                defval: '',           // <-- ÄNDERUNG: '' statt null
-                blankrows: false      // <-- NEU
+                raw: false,
+                defval: '',
+                blankrows: false
             });
-
-            headers = json[0].filter(header => header && header.toString().trim() !== '');
-            console.log('APP: Original headers found:', headers);
-            
-            let rawData = json.slice(1).map((row, rowIndex) => {
-                let obj = {};
-                headers.forEach((header, i) => {
-                    if (header && header.trim()) {
-                        obj[header] = row[i];
-                    }
-                });
-                return obj;
-            }).filter(row => {
-                return Object.values(row).some(value => 
-                    value !== undefined && 
-                    value !== null && 
-                    value !== '' && 
-                    value.toString().trim() !== ''
-                );
-            });
-
-            console.log(`APP: Raw data extracted: ${rawData.length} rows`);
-            
-            const extractedData = extractCustomerData(rawData, headers);
-            console.log(`APP: Extracted data: ${extractedData.length} customers`);
-            
-            if (extractedData.length > 0) {
-                console.log('APP: Sample extracted customer:', extractedData[0]);
-                console.log('APP: ARR values in first 5 customers:', extractedData.slice(0, 5).map(c => ({
-                    name: c['Customer Name'],
-                    arr: c.ARR,
-                    risk: c['Total Risk']
-                })));
+            const validRows = tempJson.slice(1).filter(row =>
+                row.some(cell =>
+                    cell !== undefined &&
+                    cell !== null &&
+                    cell.toString().trim() !== ''
+                )
+            );
+            if (validRows.length > 0) {
+                chosenWorksheet = tempSheet;
+                json = [tempJson[0], ...validRows];
+                break;
             }
-            
+        }
+
+        if (!chosenWorksheet) {
+            alert('No sheet with valid data found in the uploaded file.');
+            uploadInProgress = false;
+            return;
+        }
+
+        headers = json[0].filter(header => header && header.toString().trim() !== '');
+        console.log('APP: Original headers found:', headers);
+
+        let rawData = json.slice(1).map((row, rowIndex) => {
+            let obj = {};
+            headers.forEach((header, i) => {
+                if (header && header.trim()) {
+                    obj[header] = row[i];
+                }
+            });
+            return obj;
+        }).filter(row => {
+            return Object.values(row).some(value =>
+                value !== undefined &&
+                value !== null &&
+                value !== '' &&
+                value.toString().trim() !== ''
+            );
+        });
+
+        const extractedData = extractCustomerData(rawData, headers);
+
+        if (extractedData.length > 0) {
             excelData = extractedData;
             aggregatedData = extractedData;
             originalAggregatedData = [...extractedData];
-            
+
             filteredData = DataUtils.mergeSessionWithData(erledigtRows, extractedData);
             selectedLCSM = 'ALL';
-            
-            console.log('APP: Final data prepared:', {
-                excelData: excelData.length,
-                aggregatedData: aggregatedData.length,
-                filteredData: filteredData.length
-            });
-            
+
             renderTable(DataUtils.getActiveCustomers(filteredData));
             renderSortControls();
             updateTableVisibility();
-            
+
             const archiveBar = document.getElementById('archiveUploadBar');
             if (archiveBar) {
                 archiveBar.style.display = 'none';
             }
             archiveMode = false;
-            
+
             if (sliderOpen) {
                 updateSliderData();
             }
-            
+
             saveSession();
-            
+
             console.log('=== APP: File Upload SUCCESS ===');
-            alert(`File uploaded successfully: ${extractedData.length} customers processed with corrected XLSX options`);
-            
-        } catch (error) {
-            console.error('APP: Processing error:', error);
-            alert(`File processing failed: ${error.message}`);
+            alert(`File uploaded successfully: ${extractedData.length} customers processed`);
         }
-    };
-
-    reader.readAsArrayBuffer(file);
+        uploadInProgress = false;
+    } catch (error) {
+        console.error('APP: Processing error:', error);
+        alert(`File processing failed: ${error.message}`);
+        uploadInProgress = false;
+    }
 }
-
 function renderSortControls() {
     const stickySort = document.getElementById('stickySort');
     if (!stickySort) return;
@@ -897,23 +981,32 @@ function renderTable(data) {
             return;
         }
         
-        tableHTML += `<tr>`;
+        const rowId = `row-${customerKey.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+        tableHTML += `<tr id="${rowId}" data-id="${customerKey}">`;
         
         displayColumns.forEach(col => {
             if (col === 'Actions') {
+                const noteData = SessionManager.notes && SessionManager.notes[customerKey];
+                let preview = '';
+                let hasNote = false;
+                if(Array.isArray(noteData) && noteData.length){
+                    preview = noteData[noteData.length-1].text.substring(0,50);
+                    hasNote = true;
+                }else if(noteData && noteData.text){
+                    preview = noteData.text.substring(0,50);
+                    hasNote = true;
+                }
+                const noteClass = hasNote ? ' quicknote-has-content' : '';
                 if (archiveMode) {
                     tableHTML += `<td>
-                        <button onclick="removeFromArchive(${index})" style="
-                            padding: 6px 12px; background: #f44336; color: white;
-                            border: none; border-radius: 6px; cursor: pointer;
-                        ">Remove</button>
+                        <button class="table-action-btn remove-btn" onclick="removeFromArchive(${index})">Remove</button>
+                        <button class="table-action-btn note-btn quicknote-btn${noteClass}" data-customer="${customerKey}" title="${preview}">🗒</button>
                     </td>`;
                 } else {
                     tableHTML += `<td>
-                        <button onclick="markAsDone(${index})" style="
-                            padding: 6px 12px; background: #4CAF50;
-                            color: white; border: none; border-radius: 6px; cursor: pointer;"
-                            title="Archive this entry">Archive</button>
+                        <button class="table-action-btn" onclick="markAsDone(${index})" title="Archive this entry">Archive</button>
+                        <button class="table-action-btn" onclick="addCustomerToWorkflow(${index})" title="Add to Workflow">➕ Add to Workflow</button>
+                        <button class="table-action-btn note-btn quicknote-btn${noteClass}" data-customer="${customerKey}" title="${preview}">🗒</button>
                     </td>`;
                 }
             } else if (col === 'ARR') {
@@ -921,9 +1014,9 @@ function renderTable(data) {
                 tableHTML += `<td>€${arr.toLocaleString()}</td>`;
             } else if (col === 'Customer Name') {
                 const customerName = row['Customer Name'] || row['Kunde'] || row['Kundenname'] || row['Customer'] || row['Name'] || 'Unknown';
-                tableHTML += `<td>${customerName}</td>`;
+                tableHTML += `<td>${escapeHtml(customerName)}</td>`;
             } else {
-                tableHTML += `<td>${row[col] || ''}</td>`;
+                tableHTML += `<td>${escapeHtml(row[col] || '')}</td>`;
             }
         });
         tableHTML += '</tr>';
@@ -934,6 +1027,7 @@ function renderTable(data) {
     tableContainer.style.display = 'block';
     
     console.log(`Rendered table with ${processedCustomers.size} unique customers (${data.length} total rows)`);
+    bindQuickNoteButtons();
 }
 
 window.markAsDone = function(index) {
@@ -968,7 +1062,12 @@ window.markAsDone = function(index) {
             filteredData[originalIndex].done = true;
             filteredData[originalIndex].archived = true;
             filteredData[originalIndex].archivedAt = new Date().toISOString();
-            erledigtRows.push({...filteredData[originalIndex]});
+            const archivedEntry = {...filteredData[originalIndex]};
+            erledigtRows.push(archivedEntry);
+            if(!SessionManager.archivedRows) SessionManager.archivedRows = [];
+            if(!SessionManager.archivedRows.find(r => DataUtils.generateCustomerKey(r) === customerKey)){
+                SessionManager.archivedRows.push(archivedEntry);
+            }
             console.log(`Customer ${customerName} moved to archive`);
         }
         
@@ -979,16 +1078,20 @@ window.markAsDone = function(index) {
             aggregatedData[aggregatedIndex].archived = true;
             aggregatedData[aggregatedIndex].archivedAt = new Date().toISOString();
         }
-        
-        setTimeout(() => {
-            renderTable(DataUtils.getActiveCustomers(filteredData));
-            
-            if (sliderOpen) {
-                updateSliderData();
-            }
-            
+
+        const rowElement = document.getElementById(`row-${customerKey.replace(/[^a-zA-Z0-9_-]/g, '')}`);
+        if (rowElement) {
+            const btn = rowElement.querySelector('.table-action-btn');
+            if (btn) btn.disabled = true;
+        }
+
+        requestAnimationFrame(() => {
+            if (rowElement) rowElement.remove();
+            if (sliderOpen) updateSliderData();
             saveSession();
-        }, 0);
+            updateTableVisibility();
+            showToast('Customer archived successfully.');
+        });
         
         DebugLogger.add('info', `Customer marked as done: ${customerName}`);
         
@@ -1020,15 +1123,19 @@ window.removeFromArchive = function(index) {
                 aggregatedData[aggregatedIndex].done = false;
                 aggregatedData[aggregatedIndex].archived = false;
             }
-            
+
+            unmarkWorkflow(removedRow);
+
             renderTable(erledigtRows);
-            
+
             if (sliderOpen) {
                 updateSliderData();
             }
-            
+
             saveSession();
-            
+
+            showToast('Removed from Archive.');
+
             DebugLogger.add('info', `Customer removed from archive: ${customerName}`);
         }
     } catch (error) {
@@ -1056,20 +1163,51 @@ function checkUrlParameters() {
 }
 
 function showKpiDashboard() {
-    if (sliderOpen) closeSlider();
+    switchToView('kpi');
+}
 
-    const tableContainer = document.getElementById('tableContainer');
-    if (tableContainer) tableContainer.style.display = 'none';
-
+function closeKpiDashboard(){
     const kpiContainer = document.getElementById('kpiDashboardContainer');
-    if (kpiContainer) {
-        kpiContainer.style.display = 'block';
-        renderKpiDashboard();
-    }
+    if(kpiContainer) kpiContainer.classList.remove('active');
+    toggleFooter(false);
+}
+
+function switchToView(viewId){
+    requestAnimationFrame(()=>{
+        closeAllSliders();
+        const table = document.getElementById('tableContainer');
+        if(table) table.style.display = 'none';
+
+        if(viewId === 'table'){
+            archiveMode = false;
+            const bar = document.getElementById('archiveUploadBar');
+            if(bar) bar.style.display = 'none';
+            if(table) table.style.display = 'block';
+            renderTable(DataUtils.getActiveCustomers(filteredData));
+            updateTableVisibility();
+        }else if(viewId === 'archive'){
+            sliderMode = 'archive';
+            openSlider();
+        }else if(viewId === 'kpi'){
+            const kpi = document.getElementById('kpiDashboardContainer');
+            if(kpi){
+                kpi.classList.add('active');
+                renderKpiDashboard();
+                toggleFooter(true);
+            }
+        }else if(viewId === 'workflow'){
+            const sidebar = document.getElementById('workflowSidebar');
+            if(sidebar){
+                renderWorkflowSidebar();
+                sidebar.classList.add('active');
+                toggleFooter(true);
+            }
+        }
+    });
 }
 
 function renderKpiDashboard() {
-    const container = document.getElementById('kpiDashboardContainer');
+    const container = document.getElementById('kpiDashboardContent');
     if (!container) return;
     container.innerHTML = '';
 
@@ -1077,8 +1215,13 @@ function renderKpiDashboard() {
     card.className = 'kpi-dashboard-card';
 
     const controls = document.createElement('div');
+    controls.className = 'sort-controls';
+    controls.innerHTML = '<h3>Sort Data</h3>';
+    const btnWrap = document.createElement('div');
+    btnWrap.className = 'filter-bar';
     const metricSelect = document.createElement('select');
     metricSelect.id = 'metricSelect';
+    metricSelect.className = 'sort-select';
     ['ARR','Total Risk','Objective Risk','Contact Risk','Contract Risk'].forEach(m => {
         const opt = document.createElement('option');
         opt.value = m;
@@ -1087,59 +1230,101 @@ function renderKpiDashboard() {
     });
 
     const sortAsc = document.createElement('button');
-    sortAsc.textContent = 'Sort ↑';
+    sortAsc.className = 'sort-btn';
+    sortAsc.textContent = '↑';
     const sortDesc = document.createElement('button');
-    sortDesc.textContent = 'Sort ↓';
+    sortDesc.className = 'sort-btn';
+    sortDesc.textContent = '↓';
     const exportBtn = document.createElement('button');
-    exportBtn.textContent = '📤 Get Graphic';
-    exportBtn.className = 'dashboard-export-btn';
+    exportBtn.textContent = 'Get Graphic';
+    exportBtn.className = 'dashboard-export-btn sort-btn';
     const toggleHistory = document.createElement('label');
     toggleHistory.innerHTML = '<input type="checkbox" id="toggleRiskHistory"> Show Risk History';
 
     controls.appendChild(metricSelect);
-    controls.appendChild(sortAsc);
-    controls.appendChild(sortDesc);
-    controls.appendChild(exportBtn);
+    btnWrap.appendChild(sortAsc);
+    btnWrap.appendChild(sortDesc);
+    btnWrap.appendChild(exportBtn);
+    controls.appendChild(btnWrap);
     controls.appendChild(toggleHistory);
     card.appendChild(controls);
 
+    const chartArea = document.createElement('div');
+    chartArea.className = 'chart-area';
+
     const chartWrap = document.createElement('div');
-    chartWrap.className = 'chart-container';
+    chartWrap.className = 'chart-container chart-scrollable';
+    chartWrap.style.height = Math.max(aggregatedData.length * 32, 300) + 'px';
     chartWrap.innerHTML = '<canvas id="kpiChart"></canvas>';
-    card.appendChild(chartWrap);
+    chartArea.appendChild(chartWrap);
 
     const historyWrap = document.createElement('div');
     historyWrap.id = 'riskHistoryChartContainer';
     historyWrap.className = 'chart-container';
     historyWrap.style.display = 'none';
     historyWrap.innerHTML = '<select id="riskTypeSelect"><option value="Total">Total Risk</option><option value="Objective">Objective Risk</option><option value="Contact">Contact Risk</option><option value="Contract">Contract Risk</option></select> <select id="riskLevelSelect"><option value="all">All</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select><canvas id="riskHistoryChart"></canvas>';
-    card.appendChild(historyWrap);
+    chartArea.appendChild(historyWrap);
+
+    card.appendChild(chartArea);
 
     container.appendChild(card);
 
     let chart;
-    function updateChart() {
+    let dashboardData = aggregatedData.slice();
+    let currentSort = 'desc';
+
+    function sortData() {
         const metric = metricSelect.value;
-        const labels = aggregatedData.map(r => r['Customer Name']);
-        const data = aggregatedData.map(r => parseFloat(r[metric]) || 0);
+        dashboardData.sort((a, b) => {
+            const av = parseFloat(a[metric]) || 0;
+            const bv = parseFloat(b[metric]) || 0;
+            return currentSort === 'asc' ? av - bv : bv - av;
+        });
+    }
+
+    function updateChart() {
+        if (typeof Chart === 'undefined') { console.warn('Chart.js not loaded'); return; }
+        sortData();
+        const metric = metricSelect.value;
+        const labels = dashboardData.map(r => r['Customer Name']);
+        const data = dashboardData.map(r => parseFloat(r[metric]) || 0);
+        chartWrap.style.height = Math.max(dashboardData.length * 32, 300) + 'px';
         if (chart) chart.destroy();
         chart = new Chart(document.getElementById('kpiChart').getContext('2d'), {
             type: 'bar',
             data: { labels, datasets:[{ label: metric, data, backgroundColor: '#ffd221' }] },
-            options: { responsive:true, plugins:{legend:{labels:{color:'#f1f1f1'}}}, scales:{x:{ticks:{color:'#f1f1f1'}}, y:{ticks:{color:'#f1f1f1'}}}}
+            options: {
+                indexAxis: 'y',
+                responsive:true,
+                maintainAspectRatio:false,
+                plugins:{
+                    legend:{labels:{color:'#f1f1f1'}},
+                    tooltip:{
+                        backgroundColor:'#2c2f33',
+                        titleColor:'#fff',
+                        bodyColor:'#fff',
+                        borderColor:'#555',
+                        borderWidth:1,
+                        cornerRadius:6,
+                        displayColors:false
+                    }
+                },
+                scales:{x:{ticks:{color:'#f1f1f1'}}, y:{ticks:{color:'#f1f1f1'}}}
+            }
         });
+        window.addEventListener('resize', () => chart.resize());
     }
 
-    metricSelect.onchange = updateChart;
-    sortAsc.onclick = () => { aggregatedData.sort((a,b)=> (a[metricSelect.value]||0)-(b[metricSelect.value]||0)); updateChart(); };
-    sortDesc.onclick = () => { aggregatedData.sort((a,b)=> (b[metricSelect.value]||0)-(a[metricSelect.value]||0)); updateChart(); };
+    metricSelect.onchange = () => { currentSort = 'desc'; if(typeof Chart!=='undefined') updateChart(); };
+    sortAsc.onclick = () => { currentSort = 'asc'; if(typeof Chart!=='undefined') updateChart(); };
+    sortDesc.onclick = () => { currentSort = 'desc'; if(typeof Chart!=='undefined') updateChart(); };
     exportBtn.onclick = () => { if(chart) AppUtils.exportChartAsPng(chart,'kpi-chart.png'); };
     document.getElementById('toggleRiskHistory').onchange = function(){
         historyWrap.style.display = this.checked ? 'block' : 'none';
         if(this.checked) renderRiskHistoryChart();
     };
 
-    updateChart();
+    if (typeof Chart !== 'undefined') updateChart();
 }
 
 function renderRiskHistoryChart() {
@@ -1158,7 +1343,8 @@ function renderRiskHistoryChart() {
         if(points.length) datasets.push({label:key,data:points,fill:false,borderColor:'#ffd221'});
     });
     if (window.riskHistoryChart) window.riskHistoryChart.destroy();
-    window.riskHistoryChart = new Chart(ctx, {type:'line',data:{datasets},options:{responsive:true,plugins:{legend:{labels:{color:'#f1f1f1'}}}, scales:{x:{type:'time',ticks:{color:'#f1f1f1'}}, y:{ticks:{color:'#f1f1f1'}}}}});
+    window.riskHistoryChart = new Chart(ctx, {type:'line',data:{datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#f1f1f1'}}}, scales:{x:{type:'time',ticks:{color:'#f1f1f1'}}, y:{ticks:{color:'#f1f1f1'}}}}});
+    window.addEventListener('resize', ()=>window.riskHistoryChart.resize());
 
     ctx.canvas.onclick = function(evt){
         const points = window.riskHistoryChart.getElementsAtEventForMode(evt,'nearest',{intersect:true},true);
@@ -1172,7 +1358,24 @@ function renderRiskHistoryChart() {
 }
 
 function showFaqModal() {
-    const faqHtml = `<div class='privacy-popup-content'><h3>FAQ</h3><p>This dashboard helps visualize risk metrics. Upload data, then open the KPI Dashboard to view charts. Use the risk history toggle to see trends over time.</p></div>`;
+    const faqHtml = `<div class='privacy-popup-content'>
+        <h3>FAQ</h3>
+        <p>The dashboard offers several actions:</p>
+        <h4>➕ Add to Workflow</h4>
+        <p>Adds the selected customer to the workflow follow-up list and removes them from active tables.</p>
+        <h4>📥 Archive</h4>
+        <p>Moves the customer to the archive. The entry is removed from live data tables.</p>
+        <h4>🗒 QuickNote</h4>
+        <p>Attach notes to a customer. Notes are saved per session and can be edited anytime.</p>
+        <h4>💾 Save Session</h4>
+        <p>Manually stores the session state in the browser's local storage.</p>
+        <h4>❌ Remove from Workflow/Archive</h4>
+        <p>Returns an archived or workflow customer to the active table view.</p>
+        <h4>📊 KPI Dashboard</h4>
+        <p>Displays risk and revenue data as horizontal bar charts, sortable and exportable.</p>
+        <h4>🔍 Radar</h4>
+        <p>Opens a detailed view for the customer with additional risk information.</p>
+    </div>`;
     showPopup(faqHtml);
 }
 
@@ -1190,8 +1393,249 @@ function hideFaqModal(){
     if(bg) bg.style.display='none';
 }
 
+function showToast(message){
+    const container = document.getElementById('toastContainer');
+    if(!container) return;
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    container.appendChild(toast);
+    requestAnimationFrame(()=>toast.classList.add('show'));
+    setTimeout(()=>{
+        toast.classList.remove('show');
+        setTimeout(()=>toast.remove(),300);
+    },2500);
+}
+
+function openNoteModal(key, ctx = '') {
+    requestAnimationFrame(() => {
+        let popup = document.getElementById('quickNoteSlider');
+        if (!popup) {
+            popup = document.createElement('div');
+            popup.id = 'quickNoteSlider';
+            popup.className = 'quicknote-popup slider-panel quicknote-panel quicknote-slider-fixed quicknote-overlay';
+            document.body.appendChild(popup);
+        } else {
+            popup.className = 'quicknote-popup slider-panel quicknote-panel quicknote-slider-fixed quicknote-overlay';
+        }
+        const notesRaw = SessionManager.notes && SessionManager.notes[key];
+        const notes = Array.isArray(notesRaw) ? notesRaw : (notesRaw ? [notesRaw] : []);
+        const allRows = [...filteredData, ...aggregatedData, ...erledigtRows];
+        const row = allRows.find(r => DataUtils.generateCustomerKey(r) === key) || {};
+        const user = row['LCSM'] || 'User';
+        const notesHtml = notes.map(n => {
+            const d = new Date(n.timestamp);
+            const date = d.toISOString().slice(0, 10);
+            const time = d.toISOString().slice(11, 16);
+            return `<tr class="table-row"><td class="note-date"><div class="date-wrapper"><span class="date">${date}</span><br /><span class="time">${time}</span></div></td><td class="table-cell">${AppUtils.escapeHtml(user)}</td><td class="table-cell note-text-cell">${AppUtils.escapeHtml(n.text)}</td></tr>`;
+        }).join('');
+        popup.innerHTML = `
+            <div class="slider-header filter-header">
+                <h2 class="section-title">Quick Note</h2>
+                <button class="close-slider-btn" id="closeNoteBtn">×</button>
+            </div>
+            <div class="slider-content quicknote-container">
+                <table class="data-table quick-note-table">
+                    <thead><tr><th>Date</th><th>User</th><th>Note</th></tr></thead>
+                    <tbody>${notesHtml}
+                        <tr class="table-row">
+                            <td class="table-cell"></td>
+                            <td class="table-cell">${AppUtils.escapeHtml(user)}</td>
+                            <td class="table-cell note-text-cell"><textarea id="noteEditor" class="quicknote-content quicknote-textarea"></textarea></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="filter-bar" style="margin-top:10px;">
+                    <button class="table-action-btn quicknote-save-btn save-button" id="saveNoteBtn">Save</button>
+                </div>
+            </div>`;
+        requestAnimationFrame(() => { popup.style.display = 'block'; });
+        const outsideClick = function(e) {
+            if (!popup.contains(e.target)) {
+                popup.style.display = 'none';
+                document.removeEventListener('click', outsideClick);
+            }
+        };
+        document.addEventListener('click', outsideClick);
+
+        document.getElementById('saveNoteBtn').onclick = debounce(function() {
+            const text = document.getElementById('noteEditor').value.trim();
+            if (text) {
+                if (!Array.isArray(SessionManager.notes[key])) SessionManager.notes[key] = [];
+                SessionManager.notes[key].push({ text, timestamp: Date.now() });
+                saveSession();
+                const btn = document.querySelector(`.quicknote-btn[data-customer="${key}"]`);
+                if (btn) btn.classList.add('quicknote-has-content');
+            }
+            popup.style.display = 'none';
+            document.removeEventListener('click', outsideClick);
+            if (ctx !== 'workflow' && typeof updateRiskmapDisplay === 'function') updateRiskmapDisplay();
+        }, 300);
+        document.getElementById('closeNoteBtn').onclick = function() {
+            popup.style.display = 'none';
+            document.removeEventListener('click', outsideClick);
+        };
+    });
+}
+window.openNoteModal = openNoteModal;
+
+const QuickNote = {
+    render: openNoteModal
+};
+window.QuickNote = QuickNote;
+
+window.saveCurrentSession = function(){
+    saveSession();
+    showToast('Session saved successfully.');
+};
+
+function addWorkflowEntry(row){
+    const key = DataUtils.generateCustomerKey(row);
+    if(!SessionManager.workflowEntries) SessionManager.workflowEntries = {};
+    if(!SessionManager.workflowEntries[key]){
+        SessionManager.workflowEntries[key] = {
+            name: row['Customer Name'] || 'Unknown',
+            lcsms: row['LCSM'] || '',
+            totalRisk: parseFloat(row['Total Risk']) || 0,
+            addedAt: new Date().toISOString(),
+            rowData: {...row}
+        };
+        filteredData = filteredData.filter(r => DataUtils.generateCustomerKey(r) !== key);
+        aggregatedData = aggregatedData.filter(r => DataUtils.generateCustomerKey(r) !== key);
+        markInWorkflow(row);
+        saveSession();
+        renderWorkflowSidebar();
+        renderTable(DataUtils.getActiveCustomers(filteredData));
+        if(sliderOpen) updateSliderData();
+        showToast('Added to Workflow.');
+    }
+}
+
+function addCustomerToWorkflow(index){
+    const active = DataUtils.getActiveCustomers(filteredData);
+    if(index < 0 || index >= active.length) return;
+    addWorkflowEntry(active[index]);
+}
+
+function markInWorkflow(row){
+    const idx = DataUtils.findCustomerInArray(filteredData,row);
+    if(idx !== -1) filteredData[idx].inWorkflow = true;
+    const aIdx = DataUtils.findCustomerInArray(aggregatedData,row);
+    if(aIdx !== -1) aggregatedData[aIdx].inWorkflow = true;
+}
+
+function unmarkWorkflow(row){
+    const idx = DataUtils.findCustomerInArray(filteredData,row);
+    if(idx !== -1) filteredData[idx].inWorkflow = false;
+    const aIdx = DataUtils.findCustomerInArray(aggregatedData,row);
+    if(aIdx !== -1) aggregatedData[aIdx].inWorkflow = false;
+}
+
+function toggleWorkflow(){
+    const bar = document.getElementById('workflowSidebar');
+    if(!bar) return;
+    const show = !bar.classList.contains('active');
+    if(show){
+        switchToView('workflow');
+    }else{
+        bar.classList.remove('active');
+        toggleFooter(false);
+    }
+}
+
+function closeWorkflowSidebar(){
+    const bar = document.getElementById('workflowSidebar');
+    if(bar && bar.classList.contains('active')){
+        bar.classList.remove('active');
+        toggleFooter(false);
+    }
+}
+
+function renderWorkflowSidebar(){
+    const bar = document.getElementById('workflowSidebar');
+    if(!bar) return;
+    const table = bar.querySelector('.workflow-table');
+    if(!table) return;
+    const entries = SessionManager.workflowEntries || {};
+    const rows = Object.values(entries);
+    if(rows.length === 0){
+        table.innerHTML = '<tr><td>No entries</td></tr>';
+        return;
+    }
+    let html = '<tr><th>Customer</th><th>LCSM</th><th>Total Risk</th><th>Added</th><th>Action</th></tr>';
+    Object.entries(entries).forEach(([k,e])=>{
+        const notes = SessionManager.notes && SessionManager.notes[k];
+        let preview = '';
+        let hasNote = false;
+        if(Array.isArray(notes) && notes.length){
+            preview = notes[notes.length-1].text.substring(0,50);
+            hasNote = true;
+        }else if(notes && notes.text){
+            preview = notes.text.substring(0,50);
+            hasNote = true;
+        }
+        const noteClass = hasNote ? ' quicknote-has-content' : '';
+        html += `<tr data-workflow-id="${k}"><td>${e.name}</td><td>${e.lcsms}</td><td>${e.totalRisk}</td><td>${new Date(e.addedAt).toLocaleDateString()}</td><td><button class="table-action-btn done-btn" onclick="markWorkflowItemDone(\'${k}\')">Done</button><button class="table-action-btn note-btn quicknote-btn${noteClass}" data-customer="${k}" title="${preview}">🗒</button></td></tr>`;
+    });
+    table.innerHTML = html;
+    bindQuickNoteButtons();
+}
+
+function markWorkflowItemDone(entryId){
+    const row = document.querySelector(`[data-workflow-id="${entryId}"]`);
+    if(!row) return;
+    const btn = row.querySelector('.done-btn');
+    if(btn) btn.setAttribute('disabled','true');
+    requestAnimationFrame(() => {
+        window.completeWorkflow(entryId, true);
+        row.remove();
+    });
+}
+
+window.completeWorkflow = function(key, skipSidebar){
+    const entry = SessionManager.workflowEntries[key];
+    if(!entry) return;
+    const row = entry.rowData || {};
+    row.erledigt = true;
+    row.done = true;
+    row.archived = true;
+    row.tag = 'Done';
+    unmarkWorkflow(row);
+    if(DataUtils.findCustomerInArray(erledigtRows,row) === -1){
+        erledigtRows.push({...row});
+    }
+    saveSession();
+    delete SessionManager.workflowEntries[key];
+    if(!skipSidebar) renderWorkflowSidebar();
+    renderTable(DataUtils.getActiveCustomers(filteredData));
+    if(sliderOpen) updateSliderData();
+    showToast('Customer archived successfully.');
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM Content Loaded - Setting up event listeners...');
+
+    bindQuickNoteButtons();
+
+    // Ensure the file input properly triggers the upload handler
+    const fileInput = document.getElementById('fileInput');
+    if (fileInput) {
+        fileInput.addEventListener('change', onFileInputChange, false);
+        console.log('✅ DEBUG: File input listener correctly bound');
+    } else {
+        console.warn('❌ fileInput not found in DOM');
+    }
+
+    document.querySelectorAll('.sidebar-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const view = btn.getAttribute('data-target');
+            if (view && typeof window[view] === 'function') {
+                window[view]();
+            } else {
+                console.warn('Missing or invalid view function:', view);
+            }
+        });
+    });
     
     let attempts = 0;
     const maxAttempts = 20;
@@ -1254,19 +1698,19 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const fileInput = document.getElementById('fileInput');
             if (fileInput) {
-                fileInput.addEventListener('change', handleFile, false);
+                fileInput.addEventListener('change', onFileInputChange, false);
                 console.log('File input listener added');
             }
 
             const uploadDataBtn = document.getElementById('uploadDataBtn');
             if (uploadDataBtn) {
-                uploadDataBtn.onclick = window.triggerUpload;
+                uploadDataBtn.onclick = () => { closeWorkflowSidebar(); window.triggerUpload(); };
                 console.log('Upload Data button listener added');
             }
 
             const startBtn = document.getElementById('startBtn');
             if (startBtn) {
-                startBtn.onclick = window.goToStart;
+                startBtn.onclick = () => { closeWorkflowSidebar(); window.goToStart(); };
                 console.log('ShowData button listener added');
             }
             
@@ -1275,19 +1719,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Logout button not found!');
             }
 
-            const heatmapSuccess = forceButtonClick('heatmapBtn', window.openHeatmap);
+            const heatmapSuccess = forceButtonClick('heatmapBtn', () => { closeWorkflowSidebar(); window.openHeatmap(); });
             if (!heatmapSuccess) {
                 console.error('RiskMap button not found!');
             }
             
-            const archiveSuccess = forceButtonClick('archiveBtn', window.showArchive);
+            const archiveSuccess = forceButtonClick('archiveBtn', () => { closeWorkflowSidebar(); window.showArchive(); });
             if (!archiveSuccess) {
                 console.error('Archive button not found!');
             }
 
-            const kpiSuccess = forceButtonClick('kpiDashboardBtn', showKpiDashboard);
+            const kpiSuccess = forceButtonClick('kpiDashboardBtn', () => { closeWorkflowSidebar(); showKpiDashboard(); });
             if (!kpiSuccess) {
                 console.error('KPI Dashboard button not found!');
+            }
+
+            const saveBtn = document.getElementById('saveSessionBtn');
+            if (saveBtn) {
+                saveBtn.onclick = window.saveCurrentSession;
+            }
+
+            const workflowBtn = document.getElementById('workflowBtn');
+            if (workflowBtn) {
+                workflowBtn.onclick = toggleWorkflow;
+            }
+
+            const closeWorkflowBtn = document.getElementById('closeWorkflowBtn');
+            if (closeWorkflowBtn) {
+                closeWorkflowBtn.onclick = closeWorkflowSidebar;
+            }
+
+            const closeKpiBtn = document.getElementById('closeKpiBtn');
+            if (closeKpiBtn) {
+                closeKpiBtn.onclick = closeKpiDashboard;
             }
 
             const closeSliderBtn = document.getElementById('closeSliderBtn');
@@ -1312,12 +1776,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 faqBtn.onclick = showFaqModal;
             }
 
+            document.querySelectorAll('.sidebar-btn[data-target]').forEach(btn => {
+                btn.addEventListener('click', function(){
+                    const target = this.dataset.target;
+                    if (typeof window[target] === 'function') {
+                        window[target]();
+                    } else {
+                        console.warn('Missing target function for:', target);
+                    }
+                });
+            });
+
             const faqBg = document.getElementById('faqPopupBg');
             if (faqBg) {
                 faqBg.addEventListener('click', function(e){
                     if(e.target === this) hideFaqModal();
                 });
             }
+
 
             updateTableVisibility();
             AutoSave.start(saveSession);

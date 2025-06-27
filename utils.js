@@ -48,6 +48,19 @@ function throttle(fn, limit = 300) {
     };
 }
 
+// Simple HTML escaping to prevent XSS when injecting dynamic values
+function escapeHtml(str) {
+    if (str === undefined || str === null) return '';
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    };
+    return String(str).replace(/[&<>"']/g, m => map[m]);
+}
+
 // =============================================================================
 // GLOBALER NAMESPACE (OHNE ES6 EXPORTS)
 // =============================================================================
@@ -56,10 +69,14 @@ window.AppUtils = {
     // KORRIGIERT: IDENTISCHE Spalten-Mapping wie in app.js und riskmap.html
     COLUMN_MAPPINGS: {
         'LCSM': ['LCSM', 'lcsm', 'Lcsm', 'LcsM', 'SACHBEARBEITER', 'sachbearbeiter', 'Sachbearbeiter', 'CSM', 'csm', 'Manager', 'manager', 'MANAGER', 'Betreuer', 'betreuer', 'BETREUER'],
-        'Customer Name': ['Customer Name', 'customer name', 'CUSTOMER NAME', 'CustomerName', 'customername', 'CUSTOMERNAME', 'Customer Number', 'customer number', 'CUSTOMER NUMBER', 'CustomerNumber', 'customernumber', 'CUSTOMERNUMBER', 'Kunde', 'kunde', 'KUNDE', 'Kundenname', 'kundenname', 'KUNDENNAME', 'Kundennummer', 'kundennummer', 'KUNDENNUMMER', 'Name', 'name', 'NAME', 'Client', 'client', 'CLIENT'],
+        'Customer Name': ['Customer Name', 'customer name', 'CUSTOMER NAME', 'CustomerName', 'customername', 'CUSTOMERNAME', 'Kunde', 'kunde', 'KUNDE', 'Kundenname', 'kundenname', 'KUNDENNAME', 'Name', 'name', 'NAME', 'Client', 'client', 'CLIENT'],
+        'Customer Number': ['Customer Number', 'customer number', 'CUSTOMER NUMBER', 'CustomerNumber', 'customernumber', 'CUSTOMERNUMBER', 'Customer ID', 'customer id', 'CustomerID', 'CUSTOMERID', 'Kundennummer', 'kundennummer', 'KUNDENNUMMER'],
         'Total Risk': ['Total Risk', 'total risk', 'TOTAL RISK', 'TotalRisk', 'totalrisk', 'TOTALRISK', 'Risk', 'risk', 'RISK', 'Risiko', 'risiko', 'RISIKO', 'Score', 'score', 'SCORE', 'Risk Score', 'risk score', 'RISK SCORE', 'RiskScore', 'riskscore', 'RISKSCORE'],
         'ARR': ['ARR', 'arr', 'Arr', 'Annual Recurring Revenue', 'annual recurring revenue', 'ANNUAL RECURRING REVENUE', 'Revenue', 'revenue', 'REVENUE', 'Umsatz', 'umsatz', 'UMSATZ', 'Vertragswert', 'vertragswert', 'VERTRAGSWERT', 'Value', 'value', 'VALUE', 'Wert', 'wert', 'WERT', 'Amount', 'amount', 'AMOUNT']
     },
+
+    // HTML escaping utility
+    escapeHtml: escapeHtml,
 
     // KORRIGIERT: IDENTISCHE Spaltenerkennung wie in app.js und riskmap.html
     findColumnName: function(headers, targetColumn) {
@@ -211,6 +228,12 @@ window.AppUtils = {
 
     DebugLogger: {
         logs: [],
+        filters: { debug: true, info: true, warn: true, error: true },
+        setFilter: function(level, enabled){
+            if(this.filters.hasOwnProperty(level)){
+                this.filters[level] = !!enabled;
+            }
+        },
         add: function(level, message, data = null) {
             const timestamp = new Date().toISOString();
             const logEntry = {
@@ -220,16 +243,20 @@ window.AppUtils = {
                 data: data ? JSON.stringify(data) : null
             };
             this.logs.push(logEntry);
-            console.log(`[${level.toUpperCase()}] ${timestamp}: ${message}`, data);
+            if(this.filters[level] !== false){
+                console.log(`[${level.toUpperCase()}] ${timestamp}: ${message}`, data);
+            }
             
             if (this.logs.length > 1000) {
                 this.logs = this.logs.slice(-1000);
             }
         },
         download: function() {
-            const logContent = this.logs.map(entry => 
-                `[${entry.timestamp}] ${entry.level.toUpperCase()}: ${entry.message}${entry.data ? ' | Data: ' + entry.data : ''}`
-            ).join('\n');
+            const logContent = this.logs
+                .filter(entry => this.filters[entry.level] !== false)
+                .map(entry =>
+                    `[${entry.timestamp}] ${entry.level.toUpperCase()}: ${entry.message}${entry.data ? ' | Data: ' + entry.data : ''}`
+                ).join('\n');
             
             const blob = new Blob([logContent], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
@@ -304,7 +331,7 @@ window.AppUtils = {
         },
 
         getActiveCustomers: function(filteredData) {
-            return filteredData.filter(customer => !customer.erledigt && !customer.done && !customer.archived);
+            return filteredData.filter(customer => !customer.erledigt && !customer.done && !customer.archived && !customer.inWorkflow);
         },
 
         // KORRIGIERT: aggregateDataByCustomer mit IDENTISCHER Zahlenextraktion
@@ -316,7 +343,7 @@ window.AppUtils = {
                 console.log('UTILS: No headers provided, extracted from data:', headers);
             }
             
-            const customerNumberColumn = window.AppUtils.findColumnName(headers, 'Customer Name') || 
+            const customerNumberColumn = window.AppUtils.findColumnName(headers, 'Customer Number') ||
                                        headers.find(h => h.toLowerCase().includes('customer') && (h.toLowerCase().includes('number') || h.toLowerCase().includes('id'))) ||
                                        headers.find(h => h.toLowerCase().includes('kunde') && h.toLowerCase().includes('nummer')) ||
                                        'Customer Number';
@@ -451,6 +478,9 @@ window.AppUtils = {
 
     SessionManager: {
         riskHistory: {},
+        workflowEntries: {},
+        notes: {},
+        archivedRows: [],
         // Multi-Key Session-Management
         save: function(sessionData) {
             try {
@@ -520,6 +550,15 @@ window.AppUtils = {
             });
             
             window.AppUtils.DebugLogger.add('info', 'Session cleared from all keys');
+        },
+
+        getAllCustomers: function() {
+            const data = this.restore() || {};
+            return [].concat(
+                data.excelData || [],
+                data.filteredData || [],
+                data.aggregatedData || []
+            );
         }
     },
 
@@ -530,15 +569,87 @@ window.AppUtils = {
                 fileInput.value = '';
                 fileInput.type = '';
                 fileInput.type = 'file';
-                
+
                 const newFileInput = fileInput.cloneNode(true);
                 fileInput.parentNode.replaceChild(newFileInput, fileInput);
-                
+
                 window.AppUtils.DebugLogger.add('info', 'File input reset successfully');
                 return newFileInput;
             }
             return null;
         }
+    },
+
+    handleFileUpload: function(file, onSuccess, onError) {
+        if (!file) {
+            if (onError) onError(new Error('No file provided'));
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            try {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                let chosenWorksheet = null;
+                let json = null;
+                for (const sheetName of workbook.SheetNames) {
+                    const tempSheet = workbook.Sheets[sheetName];
+                    const tempJson = XLSX.utils.sheet_to_json(tempSheet, {
+                        header: 1,
+                        raw: false,
+                        defval: '',
+                        blankrows: false
+                    });
+                    const validRows = tempJson.slice(1).filter(row =>
+                        row.some(cell =>
+                            cell !== undefined &&
+                            cell !== null &&
+                            cell.toString().trim() !== ''
+                        )
+                    );
+                    if (validRows.length > 0) {
+                        chosenWorksheet = tempSheet;
+                        json = [tempJson[0], ...validRows];
+                        break;
+                    }
+                }
+
+                if (!chosenWorksheet) {
+                    alert('No sheet with valid data found in the uploaded file.');
+                    if (onError) onError(new Error('No valid sheet found'));
+                    return;
+                }
+
+                const headers = json[0].filter(h => h && h.toString().trim() !== '');
+                const rawData = json.slice(1).map(row => {
+                    const obj = {};
+                    headers.forEach((header, i) => {
+                        if (header && header.trim()) {
+                            obj[header] = row[i];
+                        }
+                    });
+                    return obj;
+                }).filter(row => {
+                    return Object.values(row).some(value =>
+                        value !== undefined &&
+                        value !== null &&
+                        value !== '' &&
+                        value.toString().trim() !== ''
+                    );
+                });
+
+                if (onSuccess) onSuccess(rawData, headers);
+            } catch (err) {
+                if (onError) onError(err);
+            }
+        };
+
+        reader.onerror = function(err) {
+            if (onError) onError(err);
+        };
+
+        reader.readAsArrayBuffer(file);
     },
 
     calculateContractRisk: function(contractDate) {
@@ -602,3 +713,37 @@ window.AppUtils = {
         }
     }
 };
+
+// ============================================================================
+// Global QuickNote binding helpers
+// ============================================================================
+
+function handleQuickNoteOpen(e) {
+    const id = e.currentTarget.dataset.customer;
+    if (!id) return;
+    const ctx = e.currentTarget.closest('#workflowSidebar') ? 'workflow' : '';
+    console.log('\u{1F4CC} Opening QuickNote for:', id);
+    requestAnimationFrame(() => {
+        if (window.openNoteModal) {
+            window.openNoteModal(id, ctx);
+        } else if (window.QuickNote && typeof window.QuickNote.render === 'function') {
+            window.QuickNote.render(id);
+        }
+        const slider = document.getElementById('quickNoteSlider');
+        if (slider) slider.classList.add('visible');
+    });
+}
+
+function bindQuickNoteButtons() {
+    document.querySelectorAll('.quicknote-btn').forEach(btn => {
+        btn.removeEventListener('click', handleQuickNoteOpen);
+        btn.addEventListener('click', handleQuickNoteOpen);
+    });
+}
+
+window.handleQuickNoteOpen = handleQuickNoteOpen;
+window.bindQuickNoteButtons = bindQuickNoteButtons;
+
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', bindQuickNoteButtons);
+}
